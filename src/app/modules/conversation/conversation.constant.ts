@@ -1,0 +1,1 @@
+export const conversaionSearchableField = ['participant.name','creator.name']
