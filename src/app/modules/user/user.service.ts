@@ -15,16 +15,17 @@ import { Follower } from './follower/follower.model';
 import { USER_AUTH_PROVIDER, userSearchableField } from './user.constant';
 import { IUser } from './user.interface';
 import { User } from './user.model';
-import { getAppleUserInfoWithToken, getUserInfoWithToken } from './user.util';
+import { getUserInfoWithToken } from './user.util';
 import { ClubMember } from '../club/club_members/club_members.model';
 import { IUserNotificationSettings } from './notificaiton_settings/notifation_sttings.interface';
 import { UserNotificationSettings } from './notificaiton_settings/notification_settings.model';
 import { Notification } from '../notification/notification.mode';
 import generateOTP from '../../../util/generateOTP';
 
-const createUserToDB = async (payload: Partial<IUser>): Promise<IUser | { accessToken: string }> => {
-
-  console.log({payload})
+const createUserToDB = async (
+  payload: Partial<IUser>
+): Promise<IUser | { accessToken: string }> => {
+  console.log({ payload });
   if (!payload.password && !payload.google_id_token && !payload.mobile) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
@@ -36,14 +37,32 @@ const createUserToDB = async (payload: Partial<IUser>): Promise<IUser | { access
   let authorization: { oneTimeCode: string; expireAt: Date } | null = null;
 
   //GOOGLE
-  if (payload.auth_provider === USER_AUTH_PROVIDER.GOOGLE && payload.google_id_token) {
-    isValid = true;
+  if (
+    payload.auth_provider === USER_AUTH_PROVIDER.GOOGLE &&
+    payload.google_id_token
+  ) {
     const tokenData = await getUserInfoWithToken(payload?.google_id_token);
     payload.email = tokenData?.data?.email;
     payload.name = tokenData?.data?.name;
+    isValid = true;
+    if (tokenData) payload.verified = true;
+
+    const isExist = await User.exists({ email: tokenData?.data?.email }).lean();
+
+    if (isExist) {
+      const createToken = jwtHelper.createToken(
+        { id: isExist._id, role: isExist.role, email: isExist.email },
+        config.jwt.jwt_secret as Secret,
+        config.jwt.jwt_expire_in as string
+      );
+      return { accessToken: createToken };
+    }
   }
   // APPLE
-  else if (payload.auth_provider === USER_AUTH_PROVIDER.MOBILE && payload.mobile) {
+  else if (
+    payload.auth_provider === USER_AUTH_PROVIDER.MOBILE &&
+    payload.mobile
+  ) {
     isValid = true;
     // will will implement mobile verificaiton later
   }
@@ -53,10 +72,10 @@ const createUserToDB = async (payload: Partial<IUser>): Promise<IUser | { access
       isValid = true;
 
       const otp = generateOTP();
-      authorization =  {
+      authorization = {
         oneTimeCode: otp.toString(),
         expireAt: new Date(Date.now() + 3 * 60000),
-      }
+      };
     }
   }
   const createUser = await User.create(payload);
@@ -66,11 +85,14 @@ const createUserToDB = async (payload: Partial<IUser>): Promise<IUser | { access
 
   if (isValid && createUser && payload.auth_provider === 'local') {
     if (!authorization?.oneTimeCode || !createUser?.email) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to generate OTP or missing email');
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Failed to generate OTP or missing email'
+      );
     }
     const createAccountTemplate = emailTemplate.createAccount({
       otp: authorization.oneTimeCode,
-      email: createUser.email
+      email: createUser.email,
     });
     emailHelper.sendEmail(createAccountTemplate);
     await User.findByIdAndUpdate(createUser._id, { $set: { authorization } });
@@ -253,7 +275,11 @@ const getAllUsers = async (query: Record<string, any>) => {
 //     select: "-active",
 //   },
 // })
-export const toggleFollowUser = async (userId: string, targetId: string,fcmToken:string) => {
+export const toggleFollowUser = async (
+  userId: string,
+  targetId: string,
+  fcmToken: string
+) => {
   if (userId === targetId) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'You cannot follow yourself');
   }
@@ -265,7 +291,10 @@ export const toggleFollowUser = async (userId: string, targetId: string,fcmToken
 
   if (isFollowing) {
     await Follower.findByIdAndDelete(isFollowing._id);
-    Notification.deleteOne({ deleteReferenceId: isFollowing._id, sender: userId }).exec();
+    Notification.deleteOne({
+      deleteReferenceId: isFollowing._id,
+      sender: userId,
+    }).exec();
     return {
       message: 'Unfollowed successfully',
     };
@@ -275,10 +304,14 @@ export const toggleFollowUser = async (userId: string, targetId: string,fcmToken
       following: targetId,
     });
 
-     //  SEND NOTIFICATION
-    const userNotificationSettings = await User.findById(targetId,'-_id notification_settings')
+    //  SEND NOTIFICATION
+    const userNotificationSettings = await User.findById(
+      targetId,
+      '-_id notification_settings'
+    )
       .populate('notification_settings')
-      .lean().exec();
+      .lean()
+      .exec();
 
     // SEND NOTIFICATION END
 

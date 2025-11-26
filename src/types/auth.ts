@@ -8,13 +8,13 @@ export type IVerifyEmail = {
 export type ILoginData = {
   email: string;
   password: string;
-  auth_provider: USER_AUTH_PROVIDER.GOOGLE | USER_AUTH_PROVIDER.APPLE | USER_AUTH_PROVIDER.LOCAL
+  auth_provider: USER_AUTH_PROVIDER.GOOGLE | USER_AUTH_PROVIDER.MOBILE | USER_AUTH_PROVIDER.LOCAL
   google_id_token:string;
   apple_id_token:string;
 };
 
 export type IAuthResetPassword = {
-  token: string;
+  otp: string;
   newPassword: string;
   confirmPassword: string;
 };

@@ -2,11 +2,11 @@ import { z } from 'zod';
 
 const createUserZodSchema = z.object({
   body: z.object({
-    name: z.string({ required_error: 'Name is required' }),
+    name: z.string({ required_error: 'Name is required' }).optional(),
     email: z.string({ required_error: 'Email is required' }).email('Invalid email format').optional(),
     mobile: z.string().optional(),
     confirm_password: z.string().optional(),
-    password: z.string({ required_error: 'Password is required' }).min(8, 'Password must be at least 8 characters'),
+    password: z.string({ required_error: 'Password is required' }).min(8, 'Password must be at least 8 characters').optional(),
     status: z.enum(['active', 'delete']).optional(),
     verified: z.boolean().optional(),
     profileImage: z.string().optional(),

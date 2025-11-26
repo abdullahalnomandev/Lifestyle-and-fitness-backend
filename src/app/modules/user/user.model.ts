@@ -10,8 +10,7 @@ import { USER_AUTH_PROVIDER } from './user.constant';
 const userSchema = new Schema<IUser, UserModel>(
   {
     name: {
-      type: String,
-      required: true,
+      type: String
     },
     email: {
       type: String,
@@ -32,9 +31,7 @@ const userSchema = new Schema<IUser, UserModel>(
     },
     password: {
       type: String,
-      select: false,
-      minlength: 8,
-      required: true
+      select: false
     },
     role: {
       type: String,
@@ -95,7 +92,7 @@ userSchema.pre('save', async function (next) {
 
   // Only check for existing user on create
     if (user.email) {
-      const isExist = await User.exists({ email: user.email });
+      const isExist = await User.exists({ email: user.email }).lean();
       if (isExist) {
         return next(new ApiError(StatusCodes.BAD_REQUEST, 'Account already exists!'));
       }

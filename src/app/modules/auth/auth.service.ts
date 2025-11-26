@@ -35,7 +35,7 @@ const loginUserFromDB = async (payload: ILoginData) => {
   }
   //APPLE LOGIN
   else if (
-    payload.auth_provider === USER_AUTH_PROVIDER.APPLE &&
+    payload.auth_provider === USER_AUTH_PROVIDER.MOBILE &&
     apple_id_token
   ) {
     const tokenData = await getAppleUserInfoWithToken(apple_id_token);
@@ -45,6 +45,20 @@ const loginUserFromDB = async (payload: ILoginData) => {
   // LOCAL LOGIN
   else {
     if (payload.auth_provider === USER_AUTH_PROVIDER.LOCAL && password) {
+      const isExist = await User.exists({ email: payload.email })
+        .select('+auth_provider')
+        .lean();
+      console.log({ called: 'called' });
+      if (
+        isExist?.auth_provider === USER_AUTH_PROVIDER.GOOGLE ||
+        isExist?.auth_provider === USER_AUTH_PROVIDER.MOBILE
+      ) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          `Auth provider not correct! You have to login with ${isExist.auth_provider}`
+        );
+      }
+
       userInfo = await User.findOne({ email }).select('+password');
 
       console.log(userInfo);
@@ -90,37 +104,46 @@ const loginUserFromDB = async (payload: ILoginData) => {
 
 //forget password
 const forgetPasswordToDB = async (email: string) => {
-  const isExistUser = await User.isExistUserByEmail(email);
+  const isExistUser = (await User.isExistUserByEmail(email)) as IUser;
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
   //send mail
-  const generateId = crypto.randomUUID();
+  const otp = generateOTP();
   const value = {
-    resetLink: `${config.front_end_app_url}/reset-password?token=${generateId}`,
+    otp,
     email: isExistUser.email,
+    name: isExistUser.name,
   };
-  const forgetPassword = emailTemplate.resetPassword(value);
+  const forgetPassword = emailTemplate.resetPassWord(value as any);
   emailHelper.sendEmail(forgetPassword);
 
   //save to DB
-  await User.findByIdAndUpdate(isExistUser._id, {
-    $set: { token: generateId },
-  });
+  const authorization = {
+    isResetPassword: false,
+    oneTimeCode: otp,
+    expireAt: new Date(Date.now() + 3 * 60000),
+  };
+  await User.findByIdAndUpdate(isExistUser._id, { $set: { authorization } });
 };
 
 // VERIFY ACC. WITH OTP
-const verifyEmailToDB = async (otp:string) => {
-
-  const registeredUser = (await User.findOne({ 'authorization.oneTimeCode':otp }, '_id verified authorization role').lean()) as IUser;
+const verifyEmailToDB = async (otp: string) => {
+  const registeredUser = (await User.findOne(
+    { 'authorization.oneTimeCode': otp },
+    '_id verified authorization role'
+  ).lean()) as IUser;
 
   if (!registeredUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'OTP is not valid.');
   }
 
   if (registeredUser.verified) {
-    throw new ApiError(  StatusCodes.BAD_REQUEST, 'This account already verified');
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'This account already verified'
+    );
   }
 
   // Check if authentication, OTP, and expireAt exist
@@ -138,7 +161,10 @@ const verifyEmailToDB = async (otp:string) => {
 
   // Check OTP expiry
   const now = new Date();
-  if (registeredUser.authorization.expireAt &&  registeredUser.authorization.expireAt < now) {
+  if (
+    registeredUser.authorization.expireAt &&
+    registeredUser.authorization.expireAt < now
+  ) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'OTP has expired');
   }
 
@@ -167,11 +193,21 @@ const verifyEmailToDB = async (otp:string) => {
 
 //forget password
 const resetPasswordToDB = async (payload: IAuthResetPassword) => {
-  const { newPassword, confirmPassword, token } = payload;
+  const { newPassword, confirmPassword, otp } = payload;
   //isExist token
-  const isExistToken = await User.findOne({ token });
+  const isExistToken = await User.findOne({ 'authorization.oneTimeCode': otp });
   if (!isExistToken) {
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'Token is not valid!');
+  }
+
+  // Check OTP expiry
+  const now = new Date();
+  if (
+    isExistToken.authorization &&
+    isExistToken.authorization.expireAt &&
+    isExistToken.authorization.expireAt < now
+  ) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'OTP has expired');
   }
 
   //check password
@@ -247,10 +283,13 @@ const changePasswordToDB = async (
 };
 
 const resendEmailToDB = async (email: string) => {
- const registeredUser = await User.findOne({ email }).lean()
+  const registeredUser = await User.findOne({ email }).lean();
 
   if (registeredUser?.verified) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'This account already verified');
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'This account already verified'
+    );
   }
 
   if (!registeredUser) {
@@ -260,8 +299,8 @@ const resendEmailToDB = async (email: string) => {
   //send mail
   const otp = generateOTP();
   const value = {
-    otp:otp.toString(),
-    email: registeredUser.email
+    otp: otp.toString(),
+    email: registeredUser.email,
   };
   const verifyAccount = emailTemplate.createAccount(value as ICreateAccount);
   emailHelper.sendEmail(verifyAccount);
@@ -272,7 +311,6 @@ const resendEmailToDB = async (email: string) => {
     expireAt: new Date(Date.now() + 3 * 60000),
   };
   await User.findByIdAndUpdate(registeredUser._id, { $set: { authorization } });
-
 
   return { message: 'OTP resend successfully' };
 };
