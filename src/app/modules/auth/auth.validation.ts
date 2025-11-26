@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const createVerifyEmailZodSchema = z.object({
   body: z.object({
-    verify_token: z.string({ required_error: 'Verify token is required' }),
+    otp: z.string({ required_error: 'OTP is required' }),
   }),
 });
 

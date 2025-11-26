@@ -6,7 +6,6 @@ import { User } from '../../user/user.model';
 import { Notification } from '../../notification/notification.mode';
 import { NOTIFICATION_OPTION } from '../../user/notificaiton_settings/notification_settings.constant';
 import { Follower } from '../../user/follower/follower.model';
-import { sendNotification } from '../../../../shared/sendNotification';
 import { IUserNotificationSettings } from '../../user/notificaiton_settings/notifation_sttings.interface';
 import { createNotificationThatYouAreTagged } from '../post.util';
 const createLike = async (postId: string, userId: string, fcmToken: string) => {
@@ -19,23 +18,6 @@ const createLike = async (postId: string, userId: string, fcmToken: string) => {
   const userNotificationSettings = await User.findById(creator, '-_id notification_settings')
     .populate('notification_settings')
     .lean();
-  const { likes_on_your_posts } = userNotificationSettings?.notification_settings as IUserNotificationSettings;
-  const shouldSend = likes_on_your_posts === NOTIFICATION_OPTION.FROM_EVERYONE || (likes_on_your_posts === NOTIFICATION_OPTION.FROM_PROFILES_I_FOLLOW &&
-    !!(await Follower.exists({
-      following: userId,
-      follower: creator,
-    }).lean()));
-
-
-  sendNotification(shouldSend, {
-    receiver: creator,
-    sender: userId,
-    title: 'Liked on your post',
-    refId: postId,
-    deleteReferenceId: like._id,
-    path: '/user/post/like',
-    fcmToken
-  });
 
   createNotificationThatYouAreTagged({
     sender: userId,

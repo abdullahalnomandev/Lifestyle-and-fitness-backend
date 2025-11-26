@@ -5,13 +5,12 @@ import sendResponse from '../../../shared/sendResponse';
 import { AuthService } from './auth.service';
 
 const verifyEmail = catchAsync(async (req: Request, res: Response) => {
-  const result = await AuthService.verifyEmailToDB(req.body.verify_token);
+  const result = await AuthService.verifyEmailToDB(req.body.otp);
 
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
     message: result.message,
-    data: result.data,
   });
 });
 
@@ -70,7 +69,7 @@ const resendEmail = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'Email sent successfully',
+    message: 'OTP successfully sent',
   });
 });
 

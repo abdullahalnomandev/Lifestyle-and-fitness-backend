@@ -19,7 +19,6 @@ import { getAppleUserInfoWithToken, getUserInfoWithToken } from './user.util';
 import { ClubMember } from '../club/club_members/club_members.model';
 import { IUserNotificationSettings } from './notificaiton_settings/notifation_sttings.interface';
 import { UserNotificationSettings } from './notificaiton_settings/notification_settings.model';
-import { sendNotification } from '../../../shared/sendNotification';
 import { Notification } from '../notification/notification.mode';
 import generateOTP from '../../../util/generateOTP';
 
@@ -280,19 +279,6 @@ export const toggleFollowUser = async (userId: string, targetId: string,fcmToken
     const userNotificationSettings = await User.findById(targetId,'-_id notification_settings')
       .populate('notification_settings')
       .lean().exec();
-
-    const { new_followers } = userNotificationSettings?.notification_settings as IUserNotificationSettings;
-    sendNotification(new_followers,
-      {
-        receiver: targetId,
-        sender: userId,
-        title: 'A user has followed you',
-        refId: userId,
-        deleteReferenceId: follow._id,
-        path: '/follow/user',
-        fcmToken
-      }
-    );
 
     // SEND NOTIFICATION END
 

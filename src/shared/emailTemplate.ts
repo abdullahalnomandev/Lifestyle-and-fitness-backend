@@ -8,273 +8,120 @@ const createAccount = (values: ICreateAccount) => {
     to: values.email,
     subject: 'Verify your account',
     html: `
-<body style="margin:0;padding:0;min-height:100vh;width:100vw;background:#232323;font-family:'Inter',Arial,sans-serif;">
-  <div style="max-width:420px;margin:40px auto 0 auto;background:#232323;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(32,19,67,.16);">
-    <div style="padding:44px 32px 36px 32px;">
-      <h1 style="color:#fff;font-size:2.1rem;font-weight:700;margin-bottom:12px;text-align:left;">Verify Account</h1>
-      <p style="color:#adadad;font-size:15px;line-height:1.6;margin-bottom:6px;text-align:left;">
-        Enter your verification code that we have sent to your email
-      </p>
-      <p style="color:#fffefe;font-size:15px;margin-bottom:30px;text-align:left;letter-spacing:0.3px;">
-        ${values.email}
-      </p>
-      <div style="color:#adadad;font-size:15px;margin-bottom:16px;">Enter Code</div>
-      <div style="display:flex;justify-content:space-between;gap:10px;max-width:320px;margin:0 auto 28px auto;">
-        ${String(values.otp)
-          .split('')
-          .map(
-            (d: string) =>
-              `<span style="display:inline-block;width:36px;height:44px;border-bottom:2.4px solid #949494;
-            text-align:center;font-size:2.2rem;color:#fff;font-weight:500;line-height:44px;">${d}</span>`
-          )
-          .join('')}
-      </div>
-      <button style="width:100%;background:#dffe60;color:#232323;font-size:1.15rem;
-        font-weight:600;border:none;border-radius:26px;padding:16px 0;cursor:pointer;transition:background .2s;">
-        verify
-      </button>
-    </div>
-  </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; ">
+    <table width="100%" cellpadding="0" cellspacing="0" style="padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #1a1a1a; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);">
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px; color: #e0e0e0;">
+                            <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">
+                                Hello,
+                            </p>
+                            <p style="margin: 0 0 30px 0; font-size: 16px; line-height: 1.6;">
+                                Thank you for signing up! Please use the following One-Time Password (OTP) to verify your email address:
+                            </p>
+                            
+                            <!-- OTP Box -->
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td align="center" style="padding: 20px 0;">
+                                        <div style="background-color: #2a2a2a; border: 2px dashed #667eea; border-radius: 8px; padding: 20px; display: inline-block;">
+                                            <p style="margin: 0 0 10px 0; color: #999; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Your OTP Code</p>
+                                            <p style="margin: 0; color: #ffffff; font-size: 36px; font-weight: bold; letter-spacing: 8px; font-family: 'Courier New', monospace;"> ${values.otp}</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Warning Box -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px;">
+                                <tr>
+                                    <td style="background-color: #2a2a2a; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 4px;">
+                                        <p style="margin: 0; color: #f59e0b; font-size: 14px; font-weight: bold;">⚠️ Important</p>
+                                        <p style="margin: 5px 0 0 0; color: #b0b0b0; font-size: 14px; line-height: 1.5;">
+                                            This code will expire in <strong style="color: #f59e0b;">3 minutes</strong>. Please enter it promptly to complete your verification.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <p style="margin: 30px 0 0 0; font-size: 14px; line-height: 1.6; color: #999;">
+                                If you didn't request this verification, please ignore this email or contact our support team if you have concerns.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
+</html>
 `,
   };
 };
 
-const resetPassword = (values: IResetPassword) => {
+const verifyAccount = (values: {
+  email: string;
+  otp: number;
+  name: string;
+}) => {
   const data = {
     to: values.email,
-    subject: 'Reset your password',
+    subject: 'Verify Your Account',
     html: `
-<body style="margin:0;padding:0;min-height:100vh;width:100vw;font-family:'Inter',Arial,sans-serif;background:#f6f8fa;">
-  <div style="max-width:600px;margin:40px auto;padding:40px;background:#fff;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.1);">
-    <h1 style="color:#20274d;font-size:1.6rem;font-weight:700;margin-bottom:16px;">Reset your password</h1>
-    <p style="color:#333;font-size:16px;line-height:1.6;margin-bottom:24px;">
-      We received a request to reset your password. Click the button below to continue:
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Your Account</title>
+</head>
+<body style="font-family: 'Inter', Arial, sans-serif; background: #f7f8fa; margin: 0; padding: 0;">
+  <div style="max-width: 440px; margin: 40px auto; background: #111132; border-radius: 18px; padding: 38px 26px 32px 26px; box-shadow: 0 8px 24px rgba(0,0,0,0.13); text-align: center;">
+    <!-- Title -->
+    <h1 style="color: #fff; font-size: 22px; font-weight: 700; margin: 0 0 18px 0; letter-spacing: 0.5px;">
+      Verify Your Account
+    </h1>
+    <!-- Greeting -->
+    <p style="color: #b3b3d1; font-size: 15px; margin: 0 0 22px 0; line-height: 1.6;">
+      Hi <strong style="color: #fff;">${values.name.split(' ')[0]}</strong>,
     </p>
-
-    <a href="${values.resetLink}" 
-      style="display:inline-block;background:#277E16;color:#fff;text-decoration:none;
-      font-size:16px;font-weight:600;padding:12px 28px;border-radius:6px;margin:20px 0;">
-      Reset Password
-    </a>
-
-    <hr style="border:none;border-top:1px solid #eee;margin:30px 0;">
-    <div style="text-align:center;color:#888;font-size:13px;">
-      You're receiving this email because you have an account with LunaSpin.app
+    <!-- Message -->
+    <p style="color: #b3b3d1; font-size: 15px; margin: 0 0 30px 0; line-height: 1.6;">
+      Thank you for signing up! Please use the verification code below to activate your account.
+    </p>
+    <!-- OTP Code Box -->
+    <div style="display: inline-block; background: #6C2FF9; color: #fff; font-size: 28px; font-weight: 700; letter-spacing: 8px; padding: 18px 0; width: 170px; border-radius: 12px; box-shadow: 0 2px 8px rgba(108,47,249,0.13); margin-bottom: 28px;">
+      ${values.otp}
     </div>
-    <div style="text-align:center;margin-top:10px;">
-      <a href="#" style="color:#888;text-decoration:none;margin:0 10px;">Privacy Policy</a> •
-      <a href="#" style="color:#888;text-decoration:none;margin:0 10px;">Terms</a>
-    </div>
+    <!-- Expiration Note -->
+    <p style="font-size: 13px; color: #9999b3; margin: 28px 0 0 0;">
+      This code will expire in <strong style="color: #fff;">3 minutes</strong>.
+    </p>
+    <!-- Footer -->
+    <p style="font-size: 12px; color: #777799; margin: 22px 0 0 0; line-height: 1.6;">
+      If you didn’t request this code, you can safely ignore this email.<br />
+      For security reasons, do not share this code with anyone.
+    </p>
   </div>
 </body>
+</html>
 `,
   };
   return data;
 };
 
-const updateCompletedWelcomeEmail = (email: string) => {
-  return {
-    to: email,
-    subject: 'Welcome to Lunspain',
-    html: `
-    <body>
-    <h1>Welcome to Lunspain</h1>
-    <p>Your profile has been updated successfully.</p>
-    </body>
-  `,
-  };
-};
-
-const completeAccount = (email: string) => {
-  return {
-    to: email,
-    subject: 'Complete your Lunspain account',
-    html: `
-    <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; margin: 50px; padding: 20px; color: #555;">
-    <div style="width: 100%; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #fff; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
-        <img src="https://i.postimg.cc/6pgNvKhD/logo.png" alt="Logo" style="display: block; margin: 0 auto 20px; width:150px" />
-        <div style="text-align: center;">
-            <p style="color: #555; font-size: 16px; line-height: 1.5; margin-bottom: 20px;">Your account has been completed successfully.</p>
-        </div>
-    </div>
-    <h1>Finish setting up your Lunspain account</h1>
-    <p>Your account has been completed successfully.</p>
-    </body>
-  `,
-  };
-};
-
-const WelcomMessageForClubCreation = (email: string) => {
-  return {
-    to: email,
-    subject: 'Welcome to Lunspain',
-    html: `
-    <body>
-    <h1>Welcome to Lunspain</h1>
-    <p>Your club has been created successfully.</p>
-  `,
-  };
-};
-
-const WelcomMessageForClassCreation = (email: string) => {
-  return {
-    to: email,
-    subject: 'Welcome to Lunspain',
-    html: `
-    <body>
-    <h1>Welcome to Lunspain</h1>
-    <p>Your class has been created successfully.</p>
-    </body>
-  `,
-  };
-};
-
-const WelcomMessageForClassBooking = (email: string) => {
-  return {
-    to: email,
-    subject: 'Welcome to Lunspain',
-    html: `
-    <body>
-    <h1>Welcome to Lunspain</h1>
-    <p>Your class has been booked successfully.</p>
-    </body>
-  `,
-  };
-};
-
-const WelcomeMessageForWaitingList = (
-  email: string,
-  waitingEntry: IBookingClass
-) => {
-  return {
-    to: email,
-    subject: 'Welcome to Lunspain',
-    html: `
-    <body>
-    <h1>Welcome to Lunspain</h1>
-    <p>You have been added to the waiting list for this class.</p>
-    <p>Name: ${waitingEntry.class}</p>
-    <p>Class Booking Ref ID: ${waitingEntry.class_booking_ref_id}</p>
-    <p>Booking ID: ${waitingEntry.booking_id}</p>
-    <p>Price of Class: ${waitingEntry.price_of_class}</p>
-    </body>
-  `,
-  };
-};
-
-const MessageForCancellation = (booking: IBookingClass, email: string) => {
-  return {
-    to: email,
-    subject: 'Welcome to Lunspain',
-    html: `
-    <body>
-    <h1>Welcome to Lunspain ${booking.booking_id} payment method: ${booking.payment_method} </h1>
-    <p>Your class booking has been cancelled successfully.</p>
-    <p>Refund Staus:Canclled</p>
-    </body>
-  `,
-  };
-};
-
-const WelcomeMessageForAcceptSpeceASQue = (
-  email: string,
-  classInfo: IClass,
-  classBookingRefId: string,
-  bookingId: string
-) => {
-  return {
-    to: email,
-    subject: `Spot available – confirm your class ${classInfo.class_name}`,
-    html: `
-<body style="margin:0;padding:0;min-height:100vh;width:100vw;font-family:'Inter',Arial,sans-serif;background:#f6f8fa;">
-  <div style="max-width:600px;margin:40px auto;padding:40px;background:#fff;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.1);">
-    <h1 style="color:#20274d;font-size:1.6rem;font-weight:700;margin-bottom:16px;">A spot just opened up!</h1>
-    <p style="color:#333;font-size:16px;line-height:1.6;margin-bottom:12px;">
-      Great news—someone cancelled and you’re next on the waiting list.
-    </p>
-
-    <table style="width:100%;border-collapse:collapse;margin:24px 0;">
-      <tr>
-        <td style="padding:8px 0;color:#555;font-weight:600;">Class:</td>
-        <td style="padding:8px 0;color:#222;">${classInfo.class_name}</td>
-      </tr>
-      <tr>
-        <td style="padding:8px 0;color:#555;font-weight:600;">Start:</td>
-        <td style="padding:8px 0;color:#222;">${classInfo.start_time.toLocaleString()}</td>
-      </tr>
-      <tr>
-        <td style="padding:8px 0;color:#555;font-weight:600;">Booking ref:</td>
-        <td style="padding:8px 0;color:#222;">${classBookingRefId}</td>
-      </tr>
-    </table>
-
-    <a href="${
-      config.front_end_app_url
-    }/accept-class?lassRef=${classBookingRefId}" 
-       style="display:inline-block;background:#277E16;color:#fff;text-decoration:none;font-size:16px;font-weight:600;padding:12px 28px;border-radius:6px;margin:20px 0;">
-      Accept my spot
-    </a>
-
-    <p style="color:#666;font-size:14px;margin-top:20px;">
-      If you don’t confirm within the next 6 hours we’ll offer the spot to the next person in line.
-    </p>
-
-    <hr style="border:none;border-top:1px solid #eee;margin:30px 0;">
-    <div style="text-align:center;color:#888;font-size:13px;">
-      You’re receiving this email because you joined the waiting list at Lunspain.
-    </div>
-    <div style="text-align:center;margin-top:10px;">
-      <a href="${
-        config.front_end_app_url
-      }/privacy" style="color:#888;text-decoration:none;margin:0 10px;">Privacy Policy</a> •
-      <a href="${
-        config.front_end_app_url
-      }/terms"   style="color:#888;text-decoration:none;margin:0 10px;">Terms</a>
-    </div>
-  </div>
-</body>
-`,
-  };
-};
-
-const RequestToCloseClub = (email: string) => {
-  return {
-    to: email,
-    subject: 'Request to close club',
-    html: `
-    <body>
-    <h1>Request to close club</h1>
-    <p>You have requested to close your club. We will close your club after 48 hours if you do not provide marketing permission.</p>
-    </body>
-  `,
-  };
-};
-
-const AccountClosedNotificaiton = (email: string) => {
-  return {
-    to: email,
-    subject: 'Account closed',
-    html: `
-    <body>
-    <h1>Account closed</h1>
-    <p>Your account has been closed. If you have any questions, please contact us.</p>
-    </body>
-  `,
-  };
-};
-
 export const emailTemplate = {
   createAccount,
-  resetPassword,
-  updateCompletedWelcomeEmail,
-  completeAccount,
-  WelcomMessageForClubCreation,
-  WelcomMessageForClassCreation,
-  WelcomMessageForClassBooking,
-  WelcomeMessageForWaitingList,
-  MessageForCancellation,
-  WelcomeMessageForAcceptSpeceASQue,
-  RequestToCloseClub,
-  AccountClosedNotificaiton,
+  verifyAccount,
 };

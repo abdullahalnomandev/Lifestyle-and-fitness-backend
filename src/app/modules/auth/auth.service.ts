@@ -10,17 +10,16 @@ import {
   IAuthResetPassword,
   IChangePassword,
   ILoginData,
-  IVerifyEmail,
 } from '../../../types/auth';
-import cryptoToken from '../../../util/cryptoToken';
-import generateOTP from '../../../util/generateOTP';
-import { User } from '../user/user.model';
 import { USER_AUTH_PROVIDER } from '../user/user.constant';
-import { token } from 'morgan';
+import { User } from '../user/user.model';
 import {
   getAppleUserInfoWithToken,
   getUserInfoWithToken,
 } from '../user/user.util';
+import { IUser } from '../user/user.interface';
+import generateOTP from '../../../util/generateOTP';
+import { ICreateAccount } from '../../../types/emailTamplate';
 
 //login
 const loginUserFromDB = async (payload: ILoginData) => {
@@ -111,33 +110,59 @@ const forgetPasswordToDB = async (email: string) => {
   });
 };
 
-//verify email
-const verifyEmailToDB = async (verify_token: string) => {
-  const isExistUser = await User.findOne({ token: verify_token });
+// VERIFY ACC. WITH OTP
+const verifyEmailToDB = async (otp:string) => {
 
-  if (!isExistUser) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Token is not valid!');
+  const registeredUser = (await User.findOne({ 'authorization.oneTimeCode':otp }, '_id verified authorization role').lean()) as IUser;
+
+  if (!registeredUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'OTP is not valid.');
   }
 
-  await User.findOneAndUpdate(
-    { token: verify_token },
+  if (registeredUser.verified) {
+    throw new ApiError(  StatusCodes.BAD_REQUEST, 'This account already verified');
+  }
+
+  // Check if authentication, OTP, and expireAt exist
+  if (!registeredUser?.authorization?.oneTimeCode) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'OTP not found or not requested'
+    );
+  }
+
+  // Check OTP match
+  if (registeredUser?.authorization?.oneTimeCode !== otp) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid OTP');
+  }
+
+  // Check OTP expiry
+  const now = new Date();
+  if (registeredUser.authorization.expireAt &&  registeredUser.authorization.expireAt < now) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'OTP has expired');
+  }
+
+  // Mark user as verified and clear OTP
+  await User.findByIdAndUpdate(
+    registeredUser._id,
     {
-      token: null,
-      verified: true,
-    }
+      $set: {
+        verified: true,
+        'authorization.oneTimeCode': null,
+        'authorization.expireAt': null,
+      },
+    },
+    { new: true }
   );
 
   //create token
   const createToken = jwtHelper.createToken(
-    { id: isExistUser._id, role: isExistUser.role, email: isExistUser.email },
+    { id: registeredUser._id, role: registeredUser.role },
     config.jwt.jwt_secret as Secret,
     config.jwt.jwt_expire_in as string
   );
 
-  return {
-    data: { accessToken: createToken },
-    message: 'Account successfullay verified.',
-  };
+  return { message: 'Account verified successfully', token: createToken };
 };
 
 //forget password
@@ -222,22 +247,34 @@ const changePasswordToDB = async (
 };
 
 const resendEmailToDB = async (email: string) => {
-  const isExistUser = await User.isExistUserByEmail(email);
-  if (!isExistUser) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
-  }
-  if (isExistUser.verified) {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      'User is already verified! Please login to your account.'
-    );
+ const registeredUser = await User.findOne({ email }).lean()
+
+  if (registeredUser?.verified) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'This account already verified');
   }
 
-  const createAccountTemplate = emailTemplate.createAccount({
-    email: isExistUser.email,
-    verify_url: `${config.front_end_app_url}?token=${crypto.randomUUID()}`,
-  });
-  emailHelper.sendEmail(createAccountTemplate);
+  if (!registeredUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'User not found');
+  }
+
+  //send mail
+  const otp = generateOTP();
+  const value = {
+    otp:otp.toString(),
+    email: registeredUser.email
+  };
+  const verifyAccount = emailTemplate.createAccount(value as ICreateAccount);
+  emailHelper.sendEmail(verifyAccount);
+
+  // Save OTP and expiry to DB
+  const authorization = {
+    oneTimeCode: otp,
+    expireAt: new Date(Date.now() + 3 * 60000),
+  };
+  await User.findByIdAndUpdate(registeredUser._id, { $set: { authorization } });
+
+
+  return { message: 'OTP resend successfully' };
 };
 
 export const AuthService = {

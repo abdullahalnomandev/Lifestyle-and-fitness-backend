@@ -12,7 +12,7 @@ router.post(
 );
 
 router.post(
-  '/resend-email',
+  '/resend-otp',
   validateRequest(AuthValidation.createResendEmailZodSchema),
   AuthController.resendEmail
 );
