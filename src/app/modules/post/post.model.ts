@@ -1,56 +1,32 @@
 import { model, Schema } from 'mongoose';
-import { CREATOR_TYPE, POST_TYPE } from './post.constant';
 import { IPOST, IPostModel } from './post.interface';
 
 const postSchema = new Schema<IPOST, IPostModel>(
   {
-    description: {
-      type: String,
-    },
-    image: {
-      type: String,
-      trim: true,
-    },
-    media: {
-      type: String,
-      trim: true,
-    },
     creator: {
       type: Schema.Types.ObjectId,
       ref: 'User',
     },
-    creator_type: {
+    caption: {
       type: String,
-      enum: Object.values(CREATOR_TYPE),
-      required: true,
+      trim: true,
     },
-    club: {
-      type: Schema.Types.ObjectId,
-      ref: 'Club',
-    },
-    tag_user: [
+    image: [
       {
-        type: Schema.Types.ObjectId,
-        ref: 'User',
+        type: String,
+        trim: true,
       },
     ],
-    features_skills: {
-      type: [String],
-      default: [],
+    createdAt: {
+      type: Date,
+      default: Date.now,
     },
-    post_type: {
-      type: String,
-      enum: Object.values(POST_TYPE),
-      required: true,
+    updatedAt: {
+      type: Date,
+      default: Date.now,
     },
   },
   { timestamps: true }
 );
-
-postSchema.index({ creator_type: 1, creator: 1, post_type: 1 });
-
-postSchema.statics.findByCreator = async function (creatorId: string) {
-  return this.find({ creator: creatorId });
-};
 
 export const Post = model<IPOST, IPostModel>('Post', postSchema);

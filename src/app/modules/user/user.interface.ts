@@ -1,18 +1,19 @@
 import { Model, Types } from 'mongoose';
 import { USER_ROLES } from '../../../enums/user';
-import { USER_AUTH_PROVIDER } from './user.constant';
+import { PROFILE_MODE, USER_AUTH_PROVIDER } from './user.constant';
 
 export interface IUser {
   _id: Types.ObjectId;
-  name:String;
+  name: string;
   email?: string;
-  mobile?:string;
+  mobile?: string;
   confirm_password?: string;
   password: string;
   role: USER_ROLES;
   status: 'active' | 'delete';
   verified: boolean;
-  profileImage:string;
+  profile_mode: PROFILE_MODE;
+  image: string;
   token?: string;
   authorization?: {
     oneTimeCode: string;
@@ -20,6 +21,14 @@ export interface IUser {
   };
   google_id_token?: string;
   auth_provider: USER_AUTH_PROVIDER;
+
+  // Added missing fields based on the image
+  location?: string;
+  occupation?: string;
+  dreamJob?: string;
+  education?: string;
+  about?: string;
+  preferences?: string[];
 }
 
 export interface UserModel extends Model<IUser> {

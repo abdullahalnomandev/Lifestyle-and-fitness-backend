@@ -2,34 +2,10 @@ import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../../errors/ApiError';
 import QueryBuilder from '../../../builder/QueryBuilder';
 import { Like } from './like.model';
-import { User } from '../../user/user.model';
 import { Notification } from '../../notification/notification.mode';
-import { NOTIFICATION_OPTION } from '../../user/notificaiton_settings/notification_settings.constant';
-import { Follower } from '../../user/follower/follower.model';
-import { IUserNotificationSettings } from '../../user/notificaiton_settings/notifation_sttings.interface';
-import { createNotificationThatYouAreTagged } from '../post.util';
 const createLike = async (postId: string, userId: string, fcmToken: string) => {
   const like = await Like.create({ post: postId, user: userId });
   await like.populate('post', 'creator tag_user');
-
-  // NOTIFICATION SECTION
-  const creator = (like.post as any).creator;
-  const tagUsers = (like.post as any).tag_user;
-  const userNotificationSettings = await User.findById(creator, '-_id notification_settings')
-    .populate('notification_settings')
-    .lean();
-
-  createNotificationThatYouAreTagged({
-    sender: userId,
-    refId: postId,
-    deleteReferenceId: like._id,
-    receiver: creator,
-    type: 'like',
-    taggedUsers: tagUsers
-  });
-
-  //NOTIFICATION SECTION END
-
 
   return like;
 };
@@ -63,7 +39,7 @@ const getLikesByPost = async (
   const likeQuery = new QueryBuilder(
     Like.find({ post: postId }).populate(
       'user',
-      'profile.username profile.firstName profile.lastName avatar'
+      'name image'
     ),
     query
   )

@@ -70,7 +70,6 @@ const updateProfile = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const user = req.user;
     let image = getSingleFilePath(req.files, 'image');
-    let cover_image = getSingleFilePath(req.files, 'cover_image');
 
     const data: any = {
       ...req.body,
@@ -78,9 +77,6 @@ const updateProfile = catchAsync(
 
     if (image && image !== 'undefined') {
       data.image = image;
-    }
-    if (cover_image && cover_image !== 'undefined') {
-      data.cover_image = cover_image;
     }
 
     const result = await UserService.updateProfileToDB(user, data);
@@ -93,17 +89,6 @@ const updateProfile = catchAsync(
     });
   }
 );
-
-const updateSkypeProfile = catchAsync(async (req: Request, res: Response) => {
-  const user = req.user;
-  const result = await UserService.updateSkypeProfileToDB(user);
-
-  sendResponse(res, {
-    success: true,
-    statusCode: StatusCodes.OK,
-    message: 'Profile updated skyped successfully.',
-  });
-});
 
 // Add followUser
 const toggleFollowUser = catchAsync(async (req: Request, res: Response) => {
@@ -194,50 +179,16 @@ const getFollowingList = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const getAllNotificationSettings = catchAsync(
-  async (req: Request, res: Response) => {
-    const userId = req.user?.id;
 
-    const result = await UserService.getAllNotificationSettingsFromDB(userId);
-
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'Notification settings retrieved successfully',
-      data: result,
-    });
-  }
-);
-
-const updateNotificationSettings = catchAsync(
-  async (req: Request, res: Response) => {
-    const userId = req.user?.id;
-
-    const result = await UserService.updateNotificationSettingsFromDB(
-      userId,
-      req.body
-    );
-
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'Notification settings updated successfully',
-      data: result,
-    });
-  }
-);
 
 export const UserController = {
   createUser,
   getUserProfile,
   updateProfile,
-  updateSkypeProfile,
   toggleFollowUser,
   unfollowUser,
   getAllUsers,
   getUserProfileById,
   getFollowerList,
-  getFollowingList,
-  getAllNotificationSettings,
-  updateNotificationSettings,
+  getFollowingList
 };

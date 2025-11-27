@@ -27,4 +27,4 @@ export enum POST_SERCH_TYPE {
 
 export const postSearchableField = ["description","features_skills"];
 export const clubSearchableField = ["name"];
-export const userSearchableField = ["profile.username", "profile.firstName", "profile.lastName","email"];
+export const userSearchableField = ["name","email"];

@@ -51,10 +51,6 @@ router
 // Like routes - nested under posts
 router.use('/:postId/likes', LikeRoutes);
 
-router.get('/search/:postType',
-  auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
-  PostController.getALlTypeOfpost);
-
 
 
 export const PostRoutes = router;

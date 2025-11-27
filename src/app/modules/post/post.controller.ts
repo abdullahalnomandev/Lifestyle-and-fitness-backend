@@ -1,26 +1,21 @@
 import { NextFunction, Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
-import { getSingleFilePath } from '../../../shared/getFilePath';
+import { getMultipleFilesPath, getSingleFilePath } from '../../../shared/getFilePath';
 import sendResponse from '../../../shared/sendResponse';
 import { PostService } from './post.service';
 
 const createPost = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const user = req.user;
-    let image = getSingleFilePath(req.files, 'image');
-    let media = getSingleFilePath(req.files, 'media');
-
+    let image = getMultipleFilesPath(req.files, 'image');
     const data: any = {
       ...req.body,
       creator: user?.id,
     };
 
-    if (image && image !== 'undefined') {
+    if (image && image.length > 0) {
       data.image = image;
-    }
-    if (media && media !== 'undefined') {
-      data.media = media;
     }
     const result = await PostService.createPost(data);
 
@@ -96,19 +91,6 @@ const getAllMyDrafts = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const getALlTypeOfpost = catchAsync(async (req: Request, res: Response) => {
-  const { postType } = req.params;
-  const userId = req.user?.id;
-  const result = await PostService.getALlTypeOfpost(postType, userId,req.query);
-
-  sendResponse(res, {
-    success: true,
-    statusCode: StatusCodes.OK,
-    message: 'Posts retrieved successfully',
-    pagination:result.pagination,
-    data: result.data
-  });
-});
 
 
 const getALlUserLikedPost = catchAsync(async (req: Request, res: Response) => {
@@ -133,6 +115,5 @@ export const PostController = {
   updatePost,
   deletePost,
   getAllMyDrafts,
-  getALlTypeOfpost,
   getALlUserLikedPost
 };

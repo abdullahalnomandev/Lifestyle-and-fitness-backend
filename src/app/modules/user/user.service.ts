@@ -16,11 +16,12 @@ import { USER_AUTH_PROVIDER, userSearchableField } from './user.constant';
 import { IUser } from './user.interface';
 import { User } from './user.model';
 import { getUserInfoWithToken } from './user.util';
-import { ClubMember } from '../club/club_members/club_members.model';
 import { IUserNotificationSettings } from './notificaiton_settings/notifation_sttings.interface';
 import { UserNotificationSettings } from './notificaiton_settings/notification_settings.model';
 import { Notification } from '../notification/notification.mode';
 import generateOTP from '../../../util/generateOTP';
+import { NetworkConnection } from '../networkConnetion/networkConnetion.model';
+import { NETWORK_CONNECTION_STATUS } from '../networkConnetion/networkConnetion.constant';
 
 const createUserToDB = async (
   payload: Partial<IUser>
@@ -112,130 +113,67 @@ const getUserProfileFromDB = async (user: JwtPayload): Promise<any> => {
   const { id } = user;
 
   // Only unselect the arrays but still need to count their lengths, so will fetch their counts
-  const isExistUser = await User.findById(id, '-verified -role -token').lean();
-  const userPosts = await Post.find({ creator: id }, '-creator -likes').lean();
-  const totalFollower = await Follower.countDocuments({ following: id }).lean();
-  const totalFollowing = await Follower.countDocuments({ follower: id }).lean();
+  const isExistUser = await User.findById(
+    id,
+    '-status -role -authorization'
+  ).lean().populate('preferences');
 
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
-  const postsWithCounts = await Promise.all(
-    userPosts.map(async (post: any) => {
-      const [commentOfPost, likeOfPost] = await Promise.all([
-        Comment.countDocuments({ post: post._id }).lean(),
-        Like.countDocuments({ post: post._id }).lean(),
-      ]);
-      return {
-        ...post,
-        commentOfPost,
-        likeOfPost,
-      };
+  // Fetch total posts and network connections for the user
+  const [totalPost, totalNetwork] = await Promise.all([
+    Post.countDocuments({ creator: id }),
+    NetworkConnection.countDocuments({
+      $or: [
+        { request: id },
+        { recipient: id }
+      ],
+      status: NETWORK_CONNECTION_STATUS.ACCEPTED
     })
-  );
+  ]);
 
-  // Prepare response without full followers/following arrays, only counts
-  const userProfile = {
+  // Return all user data + totals
+  return {
     ...isExistUser,
-    profile: {
-      ...isExistUser.profile,
-      totalFollower: totalFollower,
-      totalFollowing: totalFollowing,
-    },
-    posts: postsWithCounts,
+    totalPost,
+    totalNetwork,
   };
-
-  // Remove the actual lists from the response
-  if (userProfile.profile) {
-    delete userProfile.profile.followers;
-    delete userProfile.profile.following;
-  }
-
-  return userProfile;
 };
 
 const updateProfileToDB = async (
   user: JwtPayload,
-  payload: Partial<IUserProfile>
+  payload: Partial<IUser>
 ): Promise<Partial<IUser | null> | undefined> => {
   const { id } = user;
-
-  const isExistUser = (await User.isExistUserById(id)) as IUser;
-  const {
-    firstName,
-    lastName,
-    date_of_birth,
-    country,
-    year_of_exprience,
-    level_of_experience,
-  } = isExistUser.profile;
+  const isExistUser = await User.isExistUserById(id);
 
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
-  //unlink file here
+  if (payload.email) {
+    delete payload.email;
+  }
+
+  console.log(payload.image)
   if (payload.image) {
     unlinkFile(payload.image as string);
   }
-  if (payload.cover_image) {
-    unlinkFile(payload.cover_image as string);
-  }
-  if (!!payload.year_of_exprience) {
-    payload.year_of_exprience = Number(payload.year_of_exprience) as any;
-  }
-
-  console.log(payload);
 
   const updatedUser = await User.findByIdAndUpdate(
     id,
-    { $set: { profile: { ...isExistUser.profile, ...payload } } },
-    {
-      new: true,
-    }
-  );
+    { $set: payload },
+    { new: true }
+  ).lean();
 
-  // Welcome Email
-  if (
-    updatedUser &&
-    !firstName &&
-    !lastName &&
-    !date_of_birth &&
-    !country &&
-    !year_of_exprience &&
-    !level_of_experience
-  ) {
-    const welcomeEmailTemplate = emailTemplate.updateCompletedWelcomeEmail(
-      updatedUser?.email as string
-    );
-    emailHelper.sendEmail(welcomeEmailTemplate);
+  if (updatedUser) {
+    delete (updatedUser as any).authorization;
+    delete (updatedUser as any).status;
   }
 
   return updatedUser;
-};
-
-const updateSkypeProfileToDB = async (
-  user: JwtPayload
-): Promise<Partial<IUser | null>> => {
-  const { id } = user;
-  const isExistUser = (await User.isExistUserById(id)) as IUser;
-
-  setCronJob('0 */4 * * *', () => {
-    if (
-      !isExistUser?.profile?.firstName &&
-      !isExistUser?.profile?.lastName &&
-      !isExistUser?.profile?.date_of_birth &&
-      !isExistUser?.profile?.country
-    ) {
-      const welcomeEmailTemplate = emailTemplate.completeAccount(
-        isExistUser?.email as string
-      );
-      emailHelper.sendEmail(welcomeEmailTemplate);
-    }
-  });
-
-  return isExistUser;
 };
 
 const getAllUsers = async (query: Record<string, any>) => {
@@ -243,13 +181,6 @@ const getAllUsers = async (query: Record<string, any>) => {
 
   // Build base query
   let baseQuery = User.find();
-
-  // If club_id exists, filter users who are members of the club
-  if (club_id) {
-    const clubMemberDocs = await ClubMember.find({ club: club_id }).lean();
-    const memberUserIds = clubMemberDocs.map(doc => doc.user);
-    baseQuery = User.find({ _id: { $in: memberUserIds } });
-  }
 
   const userQuery = new QueryBuilder(baseQuery, query)
     .paginate()
@@ -336,81 +267,50 @@ export const unfollowUser = async (userId: string, targetId: string) => {
   });
 };
 
-export const getUserStats = async (userId: string, targetId: string) => {
-  const user = await User.findById(targetId).lean();
-  if (!user) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
-  }
-  return {
-    followers: user.profile?.followers?.length,
-    following: user.profile?.following?.length,
-  };
-};
 // const isFollowing = user.following.includes(targetUserId);
 
 const getUserProfileByIdFromDB = async (
   userId: string,
   requestUserId: string
-): Promise<IUser & { isFollowing: boolean }> => {
+): Promise<any> => {
   // Only unselect the arrays but still need to count their lengths, so will fetch their counts
   const isExistUser = await User.findById(
     requestUserId,
-    '-verified -role -token'
-  ).lean();
-  const userPosts = await Post.find(
-    { creator: requestUserId },
-    '-creator -likes'
-  ).lean();
-  const totalFollower = await Follower.countDocuments({
-    following: requestUserId,
-  }).lean();
-  const totalFollowing = await Follower.countDocuments({
-    follower: requestUserId,
-  }).lean();
+    '-status -role -authorization'
+  ).lean().populate('preferences');
 
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
-  const postsWithCounts = await Promise.all(
-    userPosts.map(async (post: any) => {
-      const [commentOfPost, likeOfPost] = await Promise.all([
-        Comment.countDocuments({ post: post._id }).lean(),
-        Like.countDocuments({ post: post._id }).lean(),
-      ]);
-      return {
-        ...post,
-        commentOfPost,
-        likeOfPost,
-      };
+  // Fetch total posts and network connections for the user
+  const [totalPost, totalNetwork, isConnectedToNetwork] = await Promise.all([
+    Post.countDocuments({ creator: requestUserId }),
+    NetworkConnection.countDocuments({
+      $or: [
+        { request: requestUserId },
+        { recipient: requestUserId }
+      ],
+      status: NETWORK_CONNECTION_STATUS.ACCEPTED
+    }),
+    NetworkConnection.exists({
+      $or: [
+        { request: userId, recipient: requestUserId },
+        { request: requestUserId, recipient: userId }
+      ],
+      status: NETWORK_CONNECTION_STATUS.ACCEPTED
     })
-  );
+      .lean()
+      .then(result => !!result)
+  ]);
 
-  // Check if requestUserId follows userId
-  const isFollowing = !!(await Follower.findOne({
-    follower: userId,
-    following: requestUserId,
-  }).lean());
-
-  // Prepare response without full followers/following arrays, only counts
-  const userProfile = {
+  // Return all user data + totals + isConnectedToNetwork
+  return {
     ...isExistUser,
-    profile: {
-      ...isExistUser.profile,
-      totalFollower: totalFollower,
-      totalFollowing: totalFollowing,
-    },
-    posts: postsWithCounts,
-    isFollowing,
+    totalPost,
+    totalNetwork,
+    isConnectedToNetwork,
   };
-
-  // Remove the actual lists from the response
-  if (userProfile.profile) {
-    delete userProfile.profile.followers;
-    delete userProfile.profile.following;
-  }
-
-  return userProfile;
 };
 
 const getFollowingListFromDB = async (
@@ -422,7 +322,7 @@ const getFollowingListFromDB = async (
   const followingQuery = new QueryBuilder(
     Follower.find({ follower: requestUserId }).populate(
       'following',
-      'profile.firstName profile.username profile.lastName profile.image'
+      'name image'
     ),
     query
   )
@@ -465,7 +365,7 @@ const getFollowerListFromDB = async (
     Follower.find({ following: requestUserId }).populate(
       'follower',
 
-      'profile.firstName profile.username profile.lastName profile.image'
+      'name image'
     ),
     query
   )
@@ -498,45 +398,16 @@ const getFollowerListFromDB = async (
   };
 };
 
-const getAllNotificationSettingsFromDB = async (user: string) => {
-  const notificationSettings = await User.findById(
-    user,
-    '-_id notification_settings'
-  )
-    .populate('notification_settings')
-    .lean();
 
-  return notificationSettings?.notification_settings;
-};
-
-const updateNotificationSettingsFromDB = async (
-  user: string,
-  notificationSettings: IUserNotificationSettings
-) => {
-  const userExist = await User.findById(user, 'notification_settings').lean();
-  if (!userExist) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
-  }
-
-  return await UserNotificationSettings.findOneAndUpdate(
-    { _id: userExist.notification_settings },
-    { $set: notificationSettings },
-    { new: true }
-  );
-};
 
 export const UserService = {
   createUserToDB,
   getUserProfileFromDB,
   updateProfileToDB,
-  updateSkypeProfileToDB,
   toggleFollowUser,
   unfollowUser,
-  getUserStats,
   getAllUsers,
   getUserProfileByIdFromDB,
   getFollowerListFromDB,
-  getFollowingListFromDB,
-  getAllNotificationSettingsFromDB,
-  updateNotificationSettingsFromDB,
+  getFollowingListFromDB
 };

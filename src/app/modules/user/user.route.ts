@@ -18,13 +18,6 @@ router
   );
 
 router
-  .route('/profile/skip')
-  .post(
-    auth(USER_ROLES.ADMIN, USER_ROLES.USER),
-    UserController.updateSkypeProfile
-  );
-
-router
   .route('/')
   .get(auth(USER_ROLES.ADMIN, USER_ROLES.USER), UserController.getAllUsers)
   .post(
@@ -66,20 +59,5 @@ router
     auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.SUPER_ADMIN),
     UserController.getFollowingList
   );
-
-router
-  .route('/notification-settings')
-  .get(
-    auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.SUPER_ADMIN),
-    UserController.getAllNotificationSettings
-  );
-
-router
-  .route('/notification-settings')
-  .patch(
-    auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.SUPER_ADMIN),
-    UserController.updateNotificationSettings
-  );
-
 
 export const UserRoutes = router;

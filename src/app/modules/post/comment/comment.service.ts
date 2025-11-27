@@ -4,9 +4,7 @@ import QueryBuilder from '../../../builder/QueryBuilder';
 import { Post } from '../post.model';
 import { IComment } from './comment.interface';
 import { Comment } from './comment.model';
-import { createNotification } from './comment.notificaiton.service';
 import { Notification } from '../../notification/notification.mode';
-import { createNotificationThatYouAreTagged } from '../post.util';
 import { ICommentReply } from './commentReply/commentReply.interface';
 import { CommentReply } from './commentReply/commentReply.modelt';
 import { CommentLike } from './commentLike/commentLike.modelt';
@@ -28,23 +26,6 @@ const createComment = async (payload: IComment,fcmToken:string) => {
   }
 
   const comment = await Comment.create(payload);
-  // SEND NOTIFICATION
-  createNotification({
-    sender: payload.creator.toString(),
-    refId: payload.post.toString(),
-    deleteReferenceId:comment._id,
-    receiver:(post as any).creator.toString(),
-    fcmToken
-  })
-
-  createNotificationThatYouAreTagged({
-    sender: payload.creator.toString(),
-    refId: payload.post.toString(),
-    deleteReferenceId:comment._id,
-    receiver:(post as any).creator.toString(),
-    type:'comment',
-    taggedUsers : post.tag_user
-  })
   return comment;
 };
 
@@ -110,7 +91,7 @@ const getALlCommentsByPost = async (
 
   const result = await userQuery.modelQuery.populate(
     'creator',
-    'profile.username profile.firstName profile.lastName profile.image'
+    'name image'
   );
 
   const pagination = await userQuery.getPaginationInfo();
@@ -170,7 +151,7 @@ const getAllCommentReply = async (commentId: string, userId: string, query: Reco
     .filter()
     .sort();
 
-  const result = await userQuery.modelQuery.populate('creator', 'profile.username profile.firstName profile.lastName profile.image');
+  const result = await userQuery.modelQuery.populate('creator', 'name image');
 
   // Add isCreator field
   const dataWithIsCreator = result.map((reply: any) => ({

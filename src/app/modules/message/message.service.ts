@@ -54,7 +54,7 @@ const getAllMessages = async (
     .populate({
       path: populateField,
       select:
-        'profile.username profile.image profile.firstName profile.lastName _id',
+        'name image _id',
       model: 'User',
     })
     .sort({ createdAt: 1 });
