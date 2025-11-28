@@ -6,6 +6,8 @@ import { PostRoutes } from '../app/modules/post/post.route';
 import { CommentRoutes } from '../app/modules/post/comment/comment.route';
 import { LikeRoutes } from '../app/modules/post/like';
 import { SaveRoutes } from '../app/modules/post/save';
+import { StoryRoutes } from '../app/modules/story/story.route';
+import { NetworkConnectionRoutes } from '../app/modules/networkConnetion/networkConnetion.route';
 
 const router = express.Router();
 
@@ -23,6 +25,10 @@ const apiRoutes = [
     route: PreferenceRoutes,
   },
   {
+    path: '/network-connection',
+    route: NetworkConnectionRoutes,
+  },
+  {
     path: '/post',
     route: PostRoutes,
   },
@@ -38,6 +44,10 @@ const apiRoutes = [
     path: '/post/save',
     route: SaveRoutes,
   },
+  {
+    path: '/story',
+    route: StoryRoutes,
+  }
 ];
 
 apiRoutes.forEach(route => router.use(route.path, route.route));

@@ -25,8 +25,9 @@ import { UserNotificationSettings } from './notificaiton_settings/notification_s
 import { Notification } from '../notification/notification.mode';
 import generateOTP from '../../../util/generateOTP';
 import { NetworkConnection } from '../networkConnetion/networkConnetion.model';
-import { NETWORK_CONNECTION_STATUS } from '../networkConnetion/networkConnetion.constant';
 import { USER_POST_TYPE } from '../post/post.constant';
+import { Save } from '../post/save';
+import { NETWORK_CONNECTION_STATUS } from '../networkConnetion/networkConnetion.constant';
 
 const createUserToDB = async (
   payload: Partial<IUser>
@@ -402,17 +403,11 @@ const getUserActivityFromDB = async (  requestUserId: string, myUserId: string, 
   // Get user activity based on type
   let activityQuery;
 
-  if (query.type === ACTIVITY_TYPE.PHOTO) {
-
-    activityQuery = Post.find({ creator: requestUserId });
-
-  } else if (query.type === ACTIVITY_TYPE.LIKE) {
-
-    activityQuery = Like.find({ user: requestUserId }).populate('post');
-    
-  } else {
-    activityQuery = Post.find({ creator: requestUserId });
-  }
+   if (query.type === ACTIVITY_TYPE.PHOTO)  activityQuery = Post.find({ creator: requestUserId });
+   else if (query.type === ACTIVITY_TYPE.LIKE)  activityQuery = Like.find({ user: requestUserId }).populate('post'); 
+   else if (query.type === ACTIVITY_TYPE.SAVE) activityQuery = Save.find({ user: requestUserId }).populate('post');
+  else activityQuery = Post.find({ creator: requestUserId });
+  
 
   const userQuery = new QueryBuilder(activityQuery, query)
     .paginate()
