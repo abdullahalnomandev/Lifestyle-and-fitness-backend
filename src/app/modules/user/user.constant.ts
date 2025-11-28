@@ -9,3 +9,11 @@ export enum PROFILE_MODE {
     PUBLIC = 'public'
 }
 export const userSearchableField = ['name', 'email'];
+
+
+export enum ACTIVITY_TYPE {
+  PHOTO = 'photo',
+  STORY = 'story',
+  LIKE = 'like',
+  SAVE = 'save'
+}

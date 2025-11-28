@@ -3,6 +3,7 @@ import { USER_ROLES } from '../../../enums/user';
 import auth from '../../middlewares/auth';
 import fileUploadHandler from '../../middlewares/fileUploadHandler';
 import { LikeRoutes } from './like';
+import { SaveRoutes } from './save';
 import { PostController } from './post.controller';
 
 const router = express.Router();
@@ -50,6 +51,9 @@ router
 
 // Like routes - nested under posts
 router.use('/:postId/likes', LikeRoutes);
+
+// Save routes - nested under posts
+router.use('/:postId/saves', SaveRoutes);
 
 
 

@@ -11,7 +11,16 @@ const postSchema = new Schema<IPOST, IPostModel>(
       type: String,
       trim: true,
     },
+    type:{
+      type:String,
+    },
     image: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+    media: [
       {
         type: String,
         trim: true,

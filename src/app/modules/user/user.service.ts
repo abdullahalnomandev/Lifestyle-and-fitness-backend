@@ -12,7 +12,11 @@ import { Comment } from '../post/comment/comment.model';
 import { Like } from '../post/like';
 import { Post } from '../post/post.model';
 import { Follower } from './follower/follower.model';
-import { USER_AUTH_PROVIDER, userSearchableField } from './user.constant';
+import {
+  ACTIVITY_TYPE,
+  USER_AUTH_PROVIDER,
+  userSearchableField,
+} from './user.constant';
 import { IUser } from './user.interface';
 import { User } from './user.model';
 import { getUserInfoWithToken } from './user.util';
@@ -22,6 +26,7 @@ import { Notification } from '../notification/notification.mode';
 import generateOTP from '../../../util/generateOTP';
 import { NetworkConnection } from '../networkConnetion/networkConnetion.model';
 import { NETWORK_CONNECTION_STATUS } from '../networkConnetion/networkConnetion.constant';
+import { USER_POST_TYPE } from '../post/post.constant';
 
 const createUserToDB = async (
   payload: Partial<IUser>
@@ -113,10 +118,9 @@ const getUserProfileFromDB = async (user: JwtPayload): Promise<any> => {
   const { id } = user;
 
   // Only unselect the arrays but still need to count their lengths, so will fetch their counts
-  const isExistUser = await User.findById(
-    id,
-    '-status -role -authorization'
-  ).lean().populate('preferences');
+  const isExistUser = await User.findById(id, '-status -role -authorization')
+    .lean()
+    .populate('preferences');
 
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
@@ -126,12 +130,9 @@ const getUserProfileFromDB = async (user: JwtPayload): Promise<any> => {
   const [totalPost, totalNetwork] = await Promise.all([
     Post.countDocuments({ creator: id }),
     NetworkConnection.countDocuments({
-      $or: [
-        { request: id },
-        { recipient: id }
-      ],
-      status: NETWORK_CONNECTION_STATUS.ACCEPTED
-    })
+      $or: [{ request: id }, { recipient: id }],
+      status: NETWORK_CONNECTION_STATUS.ACCEPTED,
+    }),
   ]);
 
   // Return all user data + totals
@@ -157,7 +158,7 @@ const updateProfileToDB = async (
     delete payload.email;
   }
 
-  console.log(payload.image)
+  console.log(payload.image);
   if (payload.image) {
     unlinkFile(payload.image as string);
   }
@@ -277,7 +278,9 @@ const getUserProfileByIdFromDB = async (
   const isExistUser = await User.findById(
     requestUserId,
     '-status -role -authorization'
-  ).lean().populate('preferences');
+  )
+    .lean()
+    .populate('preferences');
 
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
@@ -287,21 +290,18 @@ const getUserProfileByIdFromDB = async (
   const [totalPost, totalNetwork, isConnectedToNetwork] = await Promise.all([
     Post.countDocuments({ creator: requestUserId }),
     NetworkConnection.countDocuments({
-      $or: [
-        { request: requestUserId },
-        { recipient: requestUserId }
-      ],
-      status: NETWORK_CONNECTION_STATUS.ACCEPTED
+      $or: [{ request: requestUserId }, { recipient: requestUserId }],
+      status: NETWORK_CONNECTION_STATUS.ACCEPTED,
     }),
     NetworkConnection.exists({
       $or: [
         { request: userId, recipient: requestUserId },
-        { request: requestUserId, recipient: userId }
+        { request: requestUserId, recipient: userId },
       ],
-      status: NETWORK_CONNECTION_STATUS.ACCEPTED
+      status: NETWORK_CONNECTION_STATUS.ACCEPTED,
     })
       .lean()
-      .then(result => !!result)
+      .then(result => !!result),
   ]);
 
   // Return all user data + totals + isConnectedToNetwork
@@ -398,7 +398,36 @@ const getFollowerListFromDB = async (
   };
 };
 
+const getUserActivityFromDB = async (  requestUserId: string, myUserId: string, query: Record<string, any> ): Promise<{ data: any[]; pagination: any }> => {
+  // Get user activity based on type
+  let activityQuery;
 
+  if (query.type === ACTIVITY_TYPE.PHOTO) {
+
+    activityQuery = Post.find({ creator: requestUserId });
+
+  } else if (query.type === ACTIVITY_TYPE.LIKE) {
+
+    activityQuery = Like.find({ user: requestUserId }).populate('post');
+    
+  } else {
+    activityQuery = Post.find({ creator: requestUserId });
+  }
+
+  const userQuery = new QueryBuilder(activityQuery, query)
+    .paginate()
+    .fields()
+    .filter(['type'])
+    .sort();
+
+  const result = await userQuery.modelQuery;
+  const pagination = await userQuery.getPaginationInfo();
+
+  return {
+    data: result,
+    pagination,
+  };
+};
 
 export const UserService = {
   createUserToDB,
@@ -409,5 +438,6 @@ export const UserService = {
   getAllUsers,
   getUserProfileByIdFromDB,
   getFollowerListFromDB,
-  getFollowingListFromDB
+  getFollowingListFromDB,
+  getUserActivityFromDB,
 };

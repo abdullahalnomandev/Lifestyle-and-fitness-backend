@@ -179,6 +179,25 @@ const getFollowingList = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getUserActivity = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+  const requestUserId = req.params?.id;
+
+  const result = await UserService.getUserActivityFromDB(
+    requestUserId,
+    userId,
+    req.query
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Activity list retrieved successfully',
+    pagination: result.pagination,
+    data: result.data,
+  });
+});
+
 
 
 export const UserController = {
@@ -190,5 +209,6 @@ export const UserController = {
   getAllUsers,
   getUserProfileById,
   getFollowerList,
-  getFollowingList
+  getFollowingList,
+  getUserActivity
 };

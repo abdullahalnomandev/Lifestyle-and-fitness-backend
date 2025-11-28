@@ -1,10 +1,8 @@
 import { Model, Types } from 'mongoose';
-import { NetworkConnectionStatus } from './networkConnetion.constant';
 
 export type INetworkConnection = {
-  requestFrom: Types.ObjectId;
-  requestTo: Types.ObjectId;
-  status?: NetworkConnectionStatus;
+  requestBy?: Types.ObjectId;
+  acceptBy?: Types.ObjectId;
   createdAt?: Date;
   updatedAt?: Date;
 };

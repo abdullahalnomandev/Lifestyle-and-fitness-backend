@@ -33,6 +33,13 @@ router
   );
 
 router
+  .route('/profile/activity/:id')
+  .get(
+    auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.SUPER_ADMIN),
+    UserController.getUserActivity
+  );
+
+router
   .route('/toggle/follow/:id')
   .post(
     auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.SUPER_ADMIN),
