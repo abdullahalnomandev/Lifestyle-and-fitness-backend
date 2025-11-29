@@ -1,10 +1,10 @@
 // const domain = process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN;
 // const storefrontAccessToken = process.env.NEXT_PUBLIC_SHOPIFY_STORE_FRONT_ACCESS_TOKEN;
 // const collection = process.env.NEXT_PUBLIC_SHOPIFY_COLLECTION;
- 
+
 // async function callShopify(query) {
 //   const fetchUrl = `https://${domain}/api/2021-04/graphql.json`;
- 
+
 //   const fetchOptions = {
 //     endpoint: fetchUrl,
 //     method: "POST",
@@ -15,7 +15,7 @@
 //     },
 //     body: JSON.stringify({ query }),
 //   };
- 
+
 //   try {
 //     const data = await fetch(fetchUrl, fetchOptions).then((response) =>
 //       response.json()
@@ -25,7 +25,7 @@
 //     throw new Error("Could not fetch products!");
 //   }
 // }
- 
+
 // export async function getAllProductsInCollection() {
 //   const query = `{
 //       collectionByHandle(handle: "${collection}") {
@@ -45,8 +45,8 @@
 //                     id
 //                     originalSrc
 //                     height
-//                     width    
-//                     altText            
+//                     width
+//                     altText
 //                   }
 //                 }
 //               }
@@ -67,37 +67,37 @@
 //         }
 //       }
 //     }`;
- 
+
 //   const response = await callShopify(query);
- 
+
 //   if (response.data) {
 //     return response.data.collectionByHandle.products.edges;
 //   } else {
 //     throw new Error("Could not fetch products!");
 //   }
 // }
- 
+
 // export async function getProductSlugs() {
 //   const query = `{
 //       collectionByHandle(handle: "${collection}") {
 //         products(first: 250) {
 //           edges {
 //             node {
-//               handle              
+//               handle
 //             }
 //           }
 //         }
 //       }
 //     }`;
 //   const response = await callShopify(query);
- 
+
 //   const slugs = response.data.collectionByHandle.products.edges
 //     ? response.data.collectionByHandle.products.edges
 //     : [];
- 
+
 //   return slugs;
 // }
- 
+
 // export async function getProduct(handle) {
 //   const query = `{
 //       productByHandle(handle: "${handle}") {
@@ -112,8 +112,8 @@
 //               id
 //               originalSrc
 //               height
-//               width    
-//               altText            
+//               width
+//               altText
 //             }
 //           }
 //         }
@@ -133,14 +133,14 @@
 //       }
 //     }`;
 //   const response = await callShopify(query);
- 
+
 //   const product = response.data.productByHandle
 //     ? response.data.productByHandle
 //     : [];
- 
+
 //   return product;
 // }
- 
+
 // export async function createCheckout(id, quantity) {
 //   const query = `mutation
 //       {
@@ -161,17 +161,17 @@
 //              }
 //           }
 //         }
-//       }      
+//       }
 //     `;
 //   const response = await callShopify(query);
- 
+
 //   const checkout = response?.data?.checkoutCreate?.checkout
 //     ? response?.data?.checkoutCreate?.checkout
 //     : [];
- 
+
 //   return checkout;
 // }
- 
+
 // export async function updateCheckout(id, lineItems) {
 //   const formattedLineItems = lineItems.map((item) => {
 //     return `{
@@ -179,7 +179,7 @@
 //       quantity:${item.quantity}
 //     }`;
 //   });
- 
+
 //   const query = `mutation
 //       {
 //         checkoutLineItemsReplace(lineItems: [${formattedLineItems}], checkoutId: "${id}") {
@@ -197,14 +197,16 @@
 //              }
 //           }
 //         }
-//       }      
+//       }
 //     `;
 //   const response = await callShopify(query);
- 
+
 //   const checkout = response?.data?.checkoutLineItemsReplace?.checkout
 //     ? response?.data?.checkoutLineItemsReplace?.checkout
 //     : [];
- 
+
 //   return checkout;
 // }
- 
+
+// client id : 9834080bccb4a28ee599a65f25838592
+// client secret: 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
