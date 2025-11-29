@@ -5,7 +5,9 @@ import { INetworkConnection } from './interface';
 import { NetworkConnection } from './networkConnetion.model';
 import {
   NETWORK_CONNECTION_STATUS,
+  networkUserSearchableField,
 } from './networkConnetion.constant';
+import { User } from '../user/user.model';
 
 const sendRequestToDB = async (payload: INetworkConnection) => {
   if (!payload.requestFrom || !payload.requestTo) {
@@ -87,34 +89,104 @@ const deleteFromDB = async (id: string) => {
   return deleted;
 };
 
-const getAllFromDB = async (query: Record<string, any>,userId:string) => {
-  const qb = new QueryBuilder(
-    NetworkConnection.find({
+
+const getAllFromDB = async (query: Record<string, any>, userId: string) => {
+  // Extract searchTerm so we can search on User collection (refs), not on the raw ObjectId fields.
+  const { searchTerm, ...restQuery } = query;
+
+  let baseFilter: Record<string, any> = {
+    $or: [{ requestFrom: userId }, { requestTo: userId }],
+  };
+
+  // If searchTerm is provided, find matching users by name and filter connections
+  if (searchTerm) {
+    const matchedUsers = await User.find({
+      name: { $regex: searchTerm, $options: 'i' },
+    })
+      .select('_id')
+      .lean();
+
+    const matchedUserIds = matchedUsers.map(u => u._id);
+
+    if (matchedUserIds.length === 0) {
+      // No matching users – return empty result with basic pagination info
+      const limit = Number(restQuery.limit) || 10;
+      const page = Number(restQuery.page) || 1;
+      return {
+        pagination: {
+          total: 0,
+          limit,
+          page,
+          totalPage: 0,
+        },
+        data: [],
+      };
+    }
+
+    baseFilter = {
+      ...baseFilter,
       $and: [
         {
           $or: [
-            { requestFrom: userId },
-            { requestTo: userId }
-          ]
+            { requestFrom: { $in: matchedUserIds } },
+            { requestTo: { $in: matchedUserIds } },
+          ],
         },
-        { status: NETWORK_CONNECTION_STATUS.ACCEPTED }
-      ]
-    }),
-    query
-  ) .paginate()
-    .search([])
+      ],
+    };
+  }
+
+  const qb = new QueryBuilder(
+    NetworkConnection.find(baseFilter),
+    restQuery
+  )
+    .paginate()
+    // .search is not used here because we are searching via the User collection above
     .fields()
     .filter()
     .sort();
-
-  const data = await qb.modelQuery
+  const rawData = await qb.modelQuery
     .populate('requestFrom', 'name image')
     .populate('requestTo', 'name image')
     .lean();
 
+    console.log(rawData)
+
+  const data = rawData.map((item) => {
+      const isRequester = item.requestFrom?._id?.toString() === userId;
+      const isReceiver = item.requestTo?._id?.toString() === userId;
+
+      const user = isRequester ? item.requestTo : item.requestFrom;
+
+      let priority = 3;
+
+      if (isReceiver && item.status === NETWORK_CONNECTION_STATUS.PENDING) {
+        priority = 1;
+      }
+      else if (item.status === NETWORK_CONNECTION_STATUS.ACCEPTED) {
+        priority = 2;
+      }
+
+      return {
+        _id: item._id,
+        user,
+        status: item.status,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+        priority,
+      };
+    })
+    .filter(item => !(item.status === NETWORK_CONNECTION_STATUS.PENDING && item.priority === 3))
+    .sort((a, b) => a.priority - b.priority)
+    .map(({ priority, ...rest }) => rest);
+
   const pagination = await qb.getPaginationInfo();
   return { pagination, data };
 };
+
+
+
+
 
 const getByIdFromDB = async (id: string) => {
   const doc = await NetworkConnection.findById(id)
@@ -214,10 +286,10 @@ const getUserAllNetworks = async (
       ],
       status: NETWORK_CONNECTION_STATUS.ACCEPTED
     })
-    .populate([
-      { path: 'requestFrom', select: 'name image' },
-      { path: 'requestTo', select: 'name image' }
-    ]),
+      .populate([
+        { path: 'requestFrom', select: 'name image' },
+        { path: 'requestTo', select: 'name image' }
+      ]),
     query
   )
     .paginate()
@@ -256,7 +328,7 @@ const getUserAllNetworks = async (
 
       return {
         ...connObj,
-        otherUser,
+        user: otherUser,
         isConnectedToMe,
       };
     })

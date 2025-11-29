@@ -28,6 +28,7 @@ import { NetworkConnection } from '../networkConnetion/networkConnetion.model';
 import { USER_POST_TYPE } from '../post/post.constant';
 import { Save } from '../post/save';
 import { NETWORK_CONNECTION_STATUS } from '../networkConnetion/networkConnetion.constant';
+import { Story } from '../story/story.model';
 
 const createUserToDB = async (
   payload: Partial<IUser>
@@ -269,7 +270,6 @@ export const unfollowUser = async (userId: string, targetId: string) => {
   });
 };
 
-// const isFollowing = user.following.includes(targetUserId);
 
 const getUserProfileByIdFromDB = async (
   userId: string,
@@ -291,13 +291,13 @@ const getUserProfileByIdFromDB = async (
   const [totalPost, totalNetwork, isConnectedToNetwork] = await Promise.all([
     Post.countDocuments({ creator: requestUserId }),
     NetworkConnection.countDocuments({
-      $or: [{ request: requestUserId }, { recipient: requestUserId }],
+      $or: [{ requestFrom: requestUserId }, { requestTo: requestUserId }],
       status: NETWORK_CONNECTION_STATUS.ACCEPTED,
     }),
     NetworkConnection.exists({
       $or: [
-        { request: userId, recipient: requestUserId },
-        { request: requestUserId, recipient: userId },
+        { requestFrom: userId, requestTo: requestUserId },
+        { requestTo: userId, requestFrom: requestUserId },
       ],
       status: NETWORK_CONNECTION_STATUS.ACCEPTED,
     })
@@ -406,10 +406,16 @@ const getUserActivityFromDB = async (  requestUserId: string, myUserId: string, 
    if (query.type === ACTIVITY_TYPE.PHOTO)  activityQuery = Post.find({ creator: requestUserId });
    else if (query.type === ACTIVITY_TYPE.LIKE)  activityQuery = Like.find({ user: requestUserId }).populate('post'); 
    else if (query.type === ACTIVITY_TYPE.SAVE) activityQuery = Save.find({ user: requestUserId }).populate('post');
-  else activityQuery = Post.find({ creator: requestUserId });
-  
+   else if (query.type === ACTIVITY_TYPE.STORY) activityQuery = Story.find({ creator: requestUserId }).populate('creator');
+  //  else activityQuery = Post.find({ creator: requestUserId });
+  if (!activityQuery) {
+    throw new Error('Invalid activity type');
+  }
 
-  const userQuery = new QueryBuilder(activityQuery, query)
+  const userQuery = new QueryBuilder(
+    activityQuery as any, // Explicitly cast to any to satisfy QueryBuilder type check
+    query
+  )
     .paginate()
     .fields()
     .filter(['type'])

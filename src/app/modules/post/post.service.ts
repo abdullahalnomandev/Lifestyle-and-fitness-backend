@@ -17,6 +17,10 @@ import dayjs from 'dayjs';
 import isToday from 'dayjs/plugin/isToday';
 import isYesterday from 'dayjs/plugin/isYesterday';
 import { Follower } from '../user/follower/follower.model';
+import { NetworkConnection } from '../networkConnetion/networkConnetion.model';
+import { NETWORK_CONNECTION_STATUS } from '../networkConnetion/networkConnetion.constant';
+import { Preference } from '../preference/preferences.model';
+import { Save } from './save';
 
 //Create a new club
 const createPost = async (payload: IPOST) => {
@@ -80,43 +84,91 @@ const findById = async (postId: string) => {
   }
   return post;
 };
+
 const getAllPosts = async (query: Record<string, any>, userId: string) => {
-  // Build the query with pagination, filtering, sorting, and field selection
   const userQuery = new QueryBuilder(Post.find(), query)
     .paginate()
     .fields()
     .filter()
     .sort();
 
-  // Execute the query to get the posts
-  const result = await userQuery.modelQuery;
+  const posts = await userQuery.modelQuery;
 
-  // Enrich each post with comment count, like count, and editable status
-  const dataWithEditable = await Promise.all(
-    result.map(async (post: any) => {
-      const [commentOfPost, likeOfPost] = await Promise.all([
-        Comment.countDocuments({ post: post._id }).lean(),
-        Like.countDocuments({ post: post._id }).lean(),
-      ]);
+  // Load user preferences once
+  const currentUser = await User.findById(userId).populate("preferences").lean();
+  const userPreferenceIds = currentUser?.preferences?.map((p: any) => p._id.toString()) || [];
 
-      const isCreator = post.creator.toString() === userId;
-      return {
-        ...post.toObject(),
-        commentOfPost,
-        likeOfPost,
-        isOwner: isCreator,
-      };
-    })
+  // ---- PRIORITY CONDITIONS ----
+  // 1. Connected
+  // 2. Pending
+  // 3. Same preference
+  // 4. DO NOT SHOW posts that the user has liked → exclude first
+
+  const enriched = await Promise.all(posts.map(async (post: any) => {
+    const creatorId = post.creator.toString();
+
+    const [comments, likes, connection, requestConnection,hasSave] = await Promise.all([
+      Comment.countDocuments({ post: post._id }).lean(),
+      Like.countDocuments({ post: post._id }).lean(),
+      NetworkConnection.findOne({
+        $or: [
+          { requestFrom: userId, requestTo: creatorId },
+          { requestFrom: creatorId, requestTo: userId },
+        ],
+      }).lean(),
+      NetworkConnection.findOne({
+        $or: [
+          { requestFrom: userId, requestTo: creatorId },
+        ],
+      }).lean(),
+      Save.exists({user:userId , post:post?._id})
+    ]);
+
+    const isOwner = creatorId === userId;
+
+    // ---------- PRIORITY ASSIGNMENT ----------
+    let priority = 4; // default (not connected, not pending, no preference match)
+
+    if (connection?.status === NETWORK_CONNECTION_STATUS.ACCEPTED) {
+      priority = 1;
+    } else if (requestConnection?.status === NETWORK_CONNECTION_STATUS.PENDING) {
+      priority = 2;
+    } else {
+      // Check preference match
+      const creator = await User.findById(creatorId)
+        .populate("preferences")
+        .lean();
+
+      const creatorPrefIds = creator?.preferences?.map((p: any) => p._id.toString()) || [];
+
+      const hasPreferenceMatch = creatorPrefIds.some(id => userPreferenceIds.includes(id));
+
+      if (hasPreferenceMatch) priority = 3;
+    }
+
+    return {
+      ...post.toObject(),
+      commentOfPost: comments,
+      likeOfPost: likes,
+      isOwner,
+      priority,
+      hasSave: !!hasSave,
+      connectionStatus: connection?.status || "not_requested",
+    };
+  })
   );
 
-  // Get pagination metadata
+  // Sort posts by priority ascending
+  enriched.sort((a, b) => a.priority - b.priority);
+
   const pagination = await userQuery.getPaginationInfo();
 
   return {
-    data: dataWithEditable,
+    data: enriched,
     pagination,
   };
 };
+
 
 
 dayjs.extend(isToday);
