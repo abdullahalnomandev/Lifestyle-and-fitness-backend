@@ -1,6 +1,8 @@
-import ApiError from '../../../errors/ApiError';
 import { StatusCodes } from 'http-status-codes';
+import ApiError from '../../../errors/ApiError';
 import QueryBuilder from '../../builder/QueryBuilder';
+import { UserToken } from '../userToken';
+import { UserTokenRef } from '../userTokenRef/userTokenRef.model';
 import { IBusinessAndMindsetPlan } from './businessAndMindsetPlan.interface';
 import { BusinessAndMindsetPlan } from './businessAndMindsetPlan.model';
 
@@ -9,10 +11,18 @@ const createToDB = async (payload: IBusinessAndMindsetPlan) => {
   return result;
 };
 
-const updateInDB = async (id: string, payload: Partial<IBusinessAndMindsetPlan>) => {
-  const updated = await BusinessAndMindsetPlan.findByIdAndUpdate(id, payload, { new: true });
+const updateInDB = async (
+  id: string,
+  payload: Partial<IBusinessAndMindsetPlan>
+) => {
+  const updated = await BusinessAndMindsetPlan.findByIdAndUpdate(id, payload, {
+    new: true,
+  });
   if (!updated) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Business and Mindset Plan not found');
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      'Business and Mindset Plan not found'
+    );
   }
   return updated;
 };
@@ -20,14 +30,17 @@ const updateInDB = async (id: string, payload: Partial<IBusinessAndMindsetPlan>)
 const deleteFromDB = async (id: string) => {
   const deleted = await BusinessAndMindsetPlan.findByIdAndDelete(id);
   if (!deleted) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Business and Mindset Plan not found');
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      'Business and Mindset Plan not found'
+    );
   }
   return deleted;
 };
 
-const getAllFromDB = async (query: Record<string, any>) => {
-   let queryField =  query;
-   queryField = {...query, fields: '-description' , active: true};
+const getAllFromDB = async (userId: string, query: Record<string, any>) => {
+  let queryField = query;
+  queryField = { ...query, fields: '-description -active', active: true };
   const qb = new QueryBuilder(BusinessAndMindsetPlan.find(), queryField)
     .paginate()
     .search(['title'])
@@ -36,14 +49,55 @@ const getAllFromDB = async (query: Record<string, any>) => {
     .sort();
   const data = await qb.modelQuery.lean();
   const pagination = await qb.getPaginationInfo();
-  return { pagination, data };
+
+  // Get all item IDs for batch lookup
+  const itemIds = data.map(item => item._id);
+
+  const existingRefs = await UserTokenRef.find({
+    user: userId,
+    ref: { $in: itemIds },
+  })
+    .select('ref')
+    .lean();
+
+  const existingRefIds = new Set(existingRefs.map(ref => ref.ref.toString()));
+
+  // Process data without async operations in map
+  const filteredData = data.map(item => ({
+    ...item,
+    looked: !existingRefIds.has(item._id.toString()),
+  }));
+
+  return { pagination, data: filteredData };
 };
 
-const getByIdFromDB = async (id: string) => {
-  const doc = await BusinessAndMindsetPlan.findById(id);
+const getByIdFromDB = async (id: string, userId: string) => {
+  const [doc, existingRef, totalToken] = await Promise.all([
+    BusinessAndMindsetPlan.findById(id),
+    UserTokenRef.exists({ ref: id, user: userId }).lean(),
+    UserToken.findOne({ user: userId }),
+  ]);
+
   if (!doc) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Business and Mindset Plan not found');
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      'Business and Mindset Plan not found'
+    );
   }
+  if ((totalToken?.numberOfToken ?? 0) < 1 && !existingRef) {
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      'You have no token to unlock.'
+    );
+  }
+
+  if (!existingRef && totalToken && totalToken?.numberOfToken >= 1) {
+    await Promise.all([
+      UserTokenRef.create({ ref: id, user: userId }),
+      UserToken.updateOne({ user: userId }, { $inc: { numberOfToken: -1 } }),
+    ]);
+  }
+
   return doc;
 };
 
@@ -54,4 +108,3 @@ export const BusinessAndMindsetPlanService = {
   getAllFromDB,
   getByIdFromDB,
 };
-

@@ -15,7 +15,10 @@ const create = catchAsync(async (req: Request, res: Response) => {
 });
 
 const update = catchAsync(async (req: Request, res: Response) => {
-  const result = await BusinessAndMindsetPlanService.updateInDB(req.params.id, req.body);
+  const result = await BusinessAndMindsetPlanService.updateInDB(
+    req.params.id,
+    req.body
+  );
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
@@ -25,7 +28,9 @@ const update = catchAsync(async (req: Request, res: Response) => {
 });
 
 const remove = catchAsync(async (req: Request, res: Response) => {
-  const result = await BusinessAndMindsetPlanService.deleteFromDB(req.params.id);
+  const result = await BusinessAndMindsetPlanService.deleteFromDB(
+    req.params.id
+  );
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
@@ -35,7 +40,10 @@ const remove = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAll = catchAsync(async (req: Request, res: Response) => {
-  const result = await BusinessAndMindsetPlanService.getAllFromDB(req.query);
+  const result = await BusinessAndMindsetPlanService.getAllFromDB(
+    req.user?.id,
+    req.query
+  );
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
@@ -46,7 +54,10 @@ const getAll = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getById = catchAsync(async (req: Request, res: Response) => {
-  const result = await BusinessAndMindsetPlanService.getByIdFromDB(req.params.id);
+  const result = await BusinessAndMindsetPlanService.getByIdFromDB(
+    req.params.id,
+    req?.user?.id
+  );
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
@@ -62,4 +73,3 @@ export const BusinessAndMindsetPlanController = {
   getAll,
   getById,
 };
-

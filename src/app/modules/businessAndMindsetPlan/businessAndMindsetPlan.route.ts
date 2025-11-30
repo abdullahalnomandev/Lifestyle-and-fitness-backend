@@ -11,11 +11,17 @@ router
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
     BusinessAndMindsetPlanController.create
   )
-  .get(BusinessAndMindsetPlanController.getAll);
+  .get(
+    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
+    BusinessAndMindsetPlanController.getAll
+  );
 
 router
   .route('/:id')
-  .get(BusinessAndMindsetPlanController.getById)
+  .get(
+    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
+    BusinessAndMindsetPlanController.getById
+  )
   .patch(
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
     BusinessAndMindsetPlanController.update
@@ -26,4 +32,3 @@ router
   );
 
 export const BusinessAndMindsetPlanRoutes = router;
-
