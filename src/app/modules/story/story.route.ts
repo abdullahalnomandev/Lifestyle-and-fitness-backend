@@ -40,5 +40,12 @@ router
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
     StoryController.getAllUserStory
   )
+
+router
+  .route('/watch/:id')
+  .post(
+    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
+    StoryController.watchSory
+  )
 export const StoryRoutes = router;
 

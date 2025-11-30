@@ -21,6 +21,7 @@ import { NetworkConnection } from '../networkConnetion/networkConnetion.model';
 import { NETWORK_CONNECTION_STATUS } from '../networkConnetion/networkConnetion.constant';
 import { Preference } from '../preference/preferences.model';
 import { Save } from './save';
+import { PROFILE_MODE } from '../user/user.constant';
 
 //Create a new club
 const createPost = async (payload: IPOST) => {
@@ -30,7 +31,6 @@ const createPost = async (payload: IPOST) => {
 
 //update club post
 const updatePost = async (id: string, payload: Partial<IPOST>) => {
-
   const isEditable = await Post.findById(id, 'createdAt').lean();
   if (!isEditable) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Post not found');
@@ -162,25 +162,33 @@ const findById = async (postId: string) => {
 // };
 
 const getAllPosts = async (query: Record<string, any>, userId: string) => {
+  // Extract pagination params before building query
+  const limit = Number(query.limit) || 10;
+  const page = Number(query.page) || 1;
+  const skip = (page - 1) * limit;
+
+  // Build query WITHOUT pagination - we need all posts to calculate priority correctly
   const userQuery = new QueryBuilder(Post.find(), query)
-    .paginate()
     .fields()
     .filter()
     .sort();
 
-  const posts = await userQuery.modelQuery.lean();
+  const allPosts = await userQuery.modelQuery
+    .lean()
+    .populate('creator', '_id name image profile_mode');
 
-  const postIds = posts.map((p: any) => p._id);
-  const creatorIds = posts.map((p: any) => p.creator.toString());
+  const postIds = allPosts.map((p: any) => p._id);
+  const creatorIds = allPosts.map((p: any) => p.creator?._id.toString()).filter(Boolean);
 
   // Load user preferences once
-  const currentUser = await User.findById(userId).populate("preferences").lean();
+  const currentUser = await User.findById(userId)
+    .populate('preferences')
+    .lean();
   const userPrefIds = currentUser?.preferences?.map((p: any) => p._id.toString()) || [];
 
   // -------------------------------
   // BATCH QUERIES (0 inside loop)
   // -------------------------------
-
   const [
     commentsByPost,
     likesByPost,
@@ -188,73 +196,89 @@ const getAllPosts = async (query: Record<string, any>, userId: string) => {
     savedPosts,
     connections,
     pendingConnections,
-    creators
+    creators,
   ] = await Promise.all([
     Comment.aggregate([
       { $match: { post: { $in: postIds } } },
-      { $group: { _id: "$post", count: { $sum: 1 } } }
+      { $group: { _id: '$post', count: { $sum: 1 } } },
     ]),
     Like.aggregate([
       { $match: { post: { $in: postIds } } },
-      { $group: { _id: "$post", count: { $sum: 1 } } }
+      { $group: { _id: '$post', count: { $sum: 1 } } },
     ]),
     Like.find({ user: userId, post: { $in: postIds } }).lean(),
     Save.find({ user: userId, post: { $in: postIds } }).lean(),
     NetworkConnection.find({
       $or: [
         { requestFrom: userId, requestTo: { $in: creatorIds } },
-        { requestFrom: { $in: creatorIds }, requestTo: userId }
-      ]
+        { requestFrom: { $in: creatorIds }, requestTo: userId },
+      ],
     }).lean(),
     NetworkConnection.find({
       requestFrom: userId,
       requestTo: { $in: creatorIds },
-      status: NETWORK_CONNECTION_STATUS.PENDING
+      status: NETWORK_CONNECTION_STATUS.PENDING,
     }).lean(),
-    User.find({ _id: { $in: creatorIds } }).populate("preferences").lean()
+    User.find({ _id: { $in: creatorIds } })
+      .populate('preferences')
+      .lean(),
   ]);
 
   // Convert to fast lookup maps
-  const commentMap = Object.fromEntries(commentsByPost.map((c) => [c._id.toString(), c.count]));
-  const likeMap = Object.fromEntries(likesByPost.map((l) => [l._id.toString(), l.count]));
-  const likedMap = new Set(userLikes.map((l) => l.post.toString()));
-  const savedMap = new Set(savedPosts.map((s) => s.post.toString()));
+  const commentMap = Object.fromEntries(
+    commentsByPost.map(c => [c._id.toString(), c.count])
+  );
+  const likeMap = Object.fromEntries(
+    likesByPost.map(l => [l._id.toString(), l.count])
+  );
+  const likedMap = new Set(userLikes.map(l => l.post.toString()));
+  const savedMap = new Set(savedPosts.map(s => s.post.toString()));
 
   const connectionMap = new Map();
-  connections.forEach((c) => {
-    const key = [c.requestFrom.toString(), c.requestTo.toString()].sort().join("-");
+  connections.forEach(c => {
+    const key = [c.requestFrom.toString(), c.requestTo.toString()]
+      .sort()
+      .join('-');
     connectionMap.set(key, c.status);
   });
 
   const pendingMap = new Set(
-    pendingConnections.map((c) => c.requestTo.toString())
+    pendingConnections.map(c => c.requestTo.toString())
   );
 
   const creatorPrefMap = new Map(
     creators.map((c: any) => [
       c._id.toString(),
-      c.preferences?.map((p: any) => p._id.toString()) || []
+      c.preferences?.map((p: any) => p._id.toString()) || [],
     ])
   );
 
   // -------------------------------
   // BUILD RESPONSE (NO DB CALLS)
   // -------------------------------
-  const enriched = posts.map((post: any) => {
+  const enriched = allPosts.map((post: any) => {
     const postId = post._id.toString();
-    const creatorId = post.creator.toString();
+    const creatorId = post.creator?._id?.toString();
 
-    const key = [creatorId, userId].sort().join("-");
-    const connectionStatus = connectionMap.get(key) || "not_requested";
+    if (!creatorId) {
+      return null;
+    }
+
+    const key = [creatorId, userId].sort().join('-');
+    const connectionStatus = connectionMap.get(key) || 'not_requested';
 
     let priority = 4;
 
-    if (connectionStatus === NETWORK_CONNECTION_STATUS.ACCEPTED) priority = 1;
-    else if (pendingMap.has(creatorId)) priority = 2;
-    else {
+    if (connectionStatus === NETWORK_CONNECTION_STATUS.ACCEPTED) {
+      priority = 1;
+    } else if (pendingMap.has(creatorId) && post.creator.profile_mode === PROFILE_MODE.PUBLIC) {
+      priority = 2;
+    } else {
       const creatorPrefs = creatorPrefMap.get(creatorId) || [];
       const hasMatch = creatorPrefs.some((id: string) => userPrefIds.includes(id));
-      if (hasMatch) priority = 3;
+      if (hasMatch && post.creator.profile_mode === PROFILE_MODE.PUBLIC) {
+        priority = 3;
+      }
     }
 
     return {
@@ -265,20 +289,31 @@ const getAllPosts = async (query: Record<string, any>, userId: string) => {
       isLiked: likedMap.has(postId),
       hasSave: savedMap.has(postId),
       priority,
-      connectionStatus
+      connectionStatus,
     };
-  });
+  })
+    .filter((post): post is NonNullable<typeof post> => post !== null)
+    // Only keep priorities 1, 2, and 3
+    .filter(post => post.priority !== 4);
 
+  // Sort by priority (1 = highest, 3 = lowest)
   enriched.sort((a, b) => a.priority - b.priority);
 
-  const pagination = await userQuery.getPaginationInfo();
+  // Apply pagination AFTER filtering and sorting
+  const total = enriched.length;
+  const paginatedData = enriched.slice(skip, skip + limit);
+  const totalPage = Math.ceil(total / limit);
 
   return {
-    data: enriched,
-    pagination
+    data: paginatedData,
+    pagination: {
+      total,
+      limit,
+      page,
+      totalPage,
+    },
   };
 };
-
 
 dayjs.extend(isToday);
 dayjs.extend(isYesterday);

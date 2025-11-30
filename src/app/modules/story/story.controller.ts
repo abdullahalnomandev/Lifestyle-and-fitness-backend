@@ -103,6 +103,21 @@ const getAllUserStory = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const watchSory = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+  const result = await StoryService.watchStory(
+    req.params.id,
+    userId
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Story watched successfully',
+    data: result,
+  });
+});
+
 export const StoryController = {
   createStory,
   getAllStories,
@@ -110,4 +125,5 @@ export const StoryController = {
   updateStory,
   deleteStory,
   getAllUserStory,
+  watchSory
 };
