@@ -3,6 +3,7 @@ import { USER_ROLES } from '../../../enums/user';
 import auth from '../../middlewares/auth';
 import fileUploadHandler from '../../middlewares/fileUploadHandler';
 import { StoryController } from './story.controller';
+import { StoryLikeRoutes } from './like';
 
 const router = express.Router();
 
@@ -46,6 +47,10 @@ router
   .post(
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
     StoryController.watchSory
-  )
+  );
+
+// Like routes - nested under stories
+router.use('/:storyId/likes', StoryLikeRoutes);
+
 export const StoryRoutes = router;
 

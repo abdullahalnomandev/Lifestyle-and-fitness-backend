@@ -8,6 +8,7 @@ import { IStoryWatch, UserWatchStory } from './userwatchStory/userwatchStory.mod
 import { User } from '../user/user.model';
 import { NetworkConnection } from '../networkConnetion/networkConnetion.model';
 import { NETWORK_CONNECTION_STATUS } from '../networkConnetion/networkConnetion.constant';
+import { StoryLike } from './like/like.model';
 
 const createStory = async (payload: IStory) => {
   const story = await Story.create(payload);
@@ -250,7 +251,7 @@ const getAllUserStory = async (
     .populate('creator', '_id name image')
     .lean();
 
-  // Prepare an array of storyIds for watch status lookup
+  // Prepare an array of storyIds for watch status and like lookup
   const storyIds = allStories.map((story: any) => story._id);
 
   // Fetch watch statuses in bulk for the user
@@ -264,6 +265,25 @@ const getAllUserStory = async (
       watchStatuses[w.story.toString()] = w;
     });
   }
+
+  // Fetch like counts and user like status in bulk
+  const [likeCounts, userLikes] = await Promise.all([
+    StoryLike.aggregate([
+      { $match: { story: { $in: storyIds } } },
+      { $group: { _id: '$story', count: { $sum: 1 } } }
+    ]),
+    userId ? StoryLike.find({
+      story: { $in: storyIds },
+      user: userId
+    }).lean() : []
+  ]);
+
+  const likeCountMap = Object.fromEntries(
+    likeCounts.map(l => [l._id.toString(), l.count])
+  );
+  const userLikedSet = new Set(
+    userLikes.map((l: any) => l.story.toString())
+  );
 
   // Group stories by creator (user)
   const storiesByUser = new Map();
@@ -288,6 +308,10 @@ const getAllUserStory = async (
       isWatchStory = watchStatuses[story._id.toString()] || null;
     }
 
+    const storyIdStr = story._id.toString();
+    const likeCount = likeCountMap[storyIdStr] || 0;
+    const isLiked = userId ? userLikedSet.has(storyIdStr) : false;
+
     storiesByUser.get(creatorId).stories.push({
       _id: story._id,
       type: story.type,
@@ -296,8 +320,9 @@ const getAllUserStory = async (
       media: story.media,
       createdAt: story.createdAt,
       updatedAt: story.updatedAt,
-      isWatchStory : !!isWatchStory,
-      isLiked: false
+      isWatchStory: !!isWatchStory,
+      isLiked,
+      likeCount
     });
   });
 

@@ -1,0 +1,63 @@
+import { StatusCodes } from 'http-status-codes';
+import ApiError from '../../../../errors/ApiError';
+import QueryBuilder from '../../../builder/QueryBuilder';
+import { StoryLike } from './like.model';
+
+const createLike = async (storyId: string, userId: string) => {
+  const like = await StoryLike.create({ story: storyId, user: userId });
+  await like.populate('story', 'creator');
+
+  return like;
+};
+
+const deleteLike = async (storyId: string, userId: string) => {
+  const like = await StoryLike.findOneAndDelete(
+    { story: storyId, user: userId },
+    {
+      new: true,
+    }
+  );
+
+  if (!like) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Like not found');
+  }
+
+  return like;
+};
+
+const getLikesByStory = async (
+  storyId: string,
+  query: Record<string, unknown>
+) => {
+  const likeQuery = new QueryBuilder(
+    StoryLike.find({ story: storyId }).populate(
+      'user',
+      'name image'
+    ),
+    query
+  )
+    .paginate()
+    .fields()
+    .filter()
+    .sort();
+
+  const result = await likeQuery.modelQuery;
+  const pagination = await likeQuery.getPaginationInfo();
+
+  return {
+    data: result,
+    pagination,
+  };
+};
+
+const hasUserLiked = async (storyId: string, userId: string) => {
+  return await StoryLike.exists({ story: storyId, user: userId }).lean();
+};
+
+export const StoryLikeService = {
+  createLike,
+  deleteLike,
+  getLikesByStory,
+  hasUserLiked,
+};
+

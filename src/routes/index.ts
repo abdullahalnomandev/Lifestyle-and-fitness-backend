@@ -8,6 +8,7 @@ import { LikeRoutes } from '../app/modules/post/like';
 import { SaveRoutes } from '../app/modules/post/save';
 import { StoryRoutes } from '../app/modules/story/story.route';
 import { NetworkConnectionRoutes } from '../app/modules/networkConnetion/networkConnetion.route';
+import { BusinessAndMindsetPlanRoutes } from '../app/modules/businessAndMindsetPlan/businessAndMindsetPlan.route';
 
 const router = express.Router();
 
@@ -47,6 +48,10 @@ const apiRoutes = [
   {
     path: '/story',
     route: StoryRoutes,
+  },
+  {
+    path: '/business-and-mindset-plan',
+    route: BusinessAndMindsetPlanRoutes,
   }
 ];
 
