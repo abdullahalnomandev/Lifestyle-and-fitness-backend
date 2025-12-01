@@ -1,6 +1,9 @@
 import express from 'express';
 import { AuthRoutes } from '../app/modules/auth/auth.route';
 import { BusinessAndMindsetPlanRoutes } from '../app/modules/businessAndMindsetPlan/businessAndMindsetPlan.route';
+import { GymAndFitnessPlanRoutes } from '../app/modules/GymAndFitnessPlan/GymAndFitnessPlan.route';
+import { MealRoutes } from '../app/modules/meal/meal.route';
+import { MealAndRecipeCategoryRoutes } from '../app/modules/mealAndRecipeCategory/mealAndRecipeCategory.route';
 import { NetworkConnectionRoutes } from '../app/modules/networkConnetion/networkConnetion.route';
 import { CommentRoutes } from '../app/modules/post/comment/comment.route';
 import { LikeRoutes } from '../app/modules/post/like';
@@ -57,6 +60,18 @@ const apiRoutes = [
   {
     path: '/my-token',
     route: UserTokenRoutes,
+  },
+  {
+    path: '/meal-and-recipe-category',
+    route: MealAndRecipeCategoryRoutes,
+  },
+  {
+    path: '/meal',
+    route: MealRoutes,
+  },
+  {
+    path: '/gym-and-fitness-plan',
+    route: GymAndFitnessPlanRoutes,
   },
 ];
 

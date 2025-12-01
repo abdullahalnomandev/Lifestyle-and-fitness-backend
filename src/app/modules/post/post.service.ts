@@ -4,11 +4,7 @@ import QueryBuilder from '../../builder/QueryBuilder';
 import { Comment } from './comment/comment.model';
 import { Like } from './like';
 import {
-  clubSearchableField,
-  POST_SERCH_TYPE,
-  POST_TYPE,
-  postSearchableField,
-  userSearchableField,
+  POST_TYPE
 } from './post.constant';
 import { IPOST } from './post.interface';
 import { Post } from './post.model';
@@ -16,7 +12,6 @@ import { User } from '../user/user.model';
 import dayjs from 'dayjs';
 import isToday from 'dayjs/plugin/isToday';
 import isYesterday from 'dayjs/plugin/isYesterday';
-import { Follower } from '../user/follower/follower.model';
 import { NetworkConnection } from '../networkConnetion/networkConnetion.model';
 import { NETWORK_CONNECTION_STATUS } from '../networkConnetion/networkConnetion.constant';
 import { Preference } from '../preference/preferences.model';

@@ -11,7 +11,6 @@ import QueryBuilder from '../../builder/QueryBuilder';
 import { Comment } from '../post/comment/comment.model';
 import { Like } from '../post/like';
 import { Post } from '../post/post.model';
-import { Follower } from './follower/follower.model';
 import {
   ACTIVITY_TYPE,
   USER_AUTH_PROVIDER,
@@ -20,8 +19,6 @@ import {
 import { IUser } from './user.interface';
 import { User } from './user.model';
 import { getUserInfoWithToken } from './user.util';
-import { IUserNotificationSettings } from './notificaiton_settings/notifation_sttings.interface';
-import { UserNotificationSettings } from './notificaiton_settings/notification_settings.model';
 import { Notification } from '../notification/notification.mode';
 import generateOTP from '../../../util/generateOTP';
 import { NetworkConnection } from '../networkConnetion/networkConnetion.model';
@@ -208,53 +205,6 @@ const getAllUsers = async (query: Record<string, any>) => {
 //     path: "plan",
 //     select: "-active",
 //   },
-// })
-export const toggleFollowUser = async (
-  userId: string,
-  targetId: string,
-  fcmToken: string
-) => {
-  if (userId === targetId) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'You cannot follow yourself');
-  }
-
-  const isFollowing = await Follower.findOne({
-    follower: userId,
-    following: targetId,
-  });
-
-  if (isFollowing) {
-    await Follower.findByIdAndDelete(isFollowing._id);
-    Notification.deleteOne({
-      deleteReferenceId: isFollowing._id,
-      sender: userId,
-    }).exec();
-    return {
-      message: 'Unfollowed successfully',
-    };
-  } else {
-    const follow = await Follower.create({
-      follower: userId,
-      following: targetId,
-    });
-
-    //  SEND NOTIFICATION
-    const userNotificationSettings = await User.findById(
-      targetId,
-      '-_id notification_settings'
-    )
-      .populate('notification_settings')
-      .lean()
-      .exec();
-
-    // SEND NOTIFICATION END
-
-    return {
-      message: 'Followed successfully',
-      data: follow,
-    };
-  }
-};
 
 export const unfollowUser = async (userId: string, targetId: string) => {
   if (userId === targetId) {
@@ -314,90 +264,6 @@ const getUserProfileByIdFromDB = async (
   };
 };
 
-const getFollowingListFromDB = async (
-  requestUserId: string,
-  myUserId: string,
-  query: Record<string, any>
-) => {
-  // Build query for users that requestUserId is following
-  const followingQuery = new QueryBuilder(
-    Follower.find({ follower: requestUserId }).populate(
-      'following',
-      'name image'
-    ),
-    query
-  )
-    .paginate()
-    .fields()
-    .filter()
-    .sort();
-
-  const result = await followingQuery.modelQuery;
-  const pagination = await followingQuery.getPaginationInfo();
-
-  // For each followed user, determine if myUserId also follows them
-  const enriched = await Promise.all(
-    result.map(async (doc: any) => {
-      const targetUserId = doc.following._id;
-      const amIFollowing = !!(await Follower.exists({
-        follower: myUserId,
-        following: targetUserId,
-      }).lean());
-      return {
-        ...doc.toObject(),
-        isFollowing: amIFollowing,
-      };
-    })
-  );
-
-  return {
-    data: enriched,
-    pagination,
-  };
-};
-
-const getFollowerListFromDB = async (
-  requestUserId: string,
-  myUserId: string,
-  query: Record<string, any>
-) => {
-  // Build query for users that requestUserId is following
-  const followingQuery = new QueryBuilder(
-    Follower.find({ following: requestUserId }).populate(
-      'follower',
-
-      'name image'
-    ),
-    query
-  )
-    .paginate()
-    .fields()
-    .filter()
-    .sort();
-
-  const result = await followingQuery.modelQuery;
-  const pagination = await followingQuery.getPaginationInfo();
-
-  // For each followed user, determine if myUserId also follows them
-  const enriched = await Promise.all(
-    result.map(async (doc: any) => {
-      const targetUserId = doc.following._id;
-      const amIFollowing = !!(await Follower.exists({
-        follower: myUserId,
-        following: targetUserId,
-      }).lean());
-      return {
-        ...doc.toObject(),
-        isFollowing: amIFollowing,
-      };
-    })
-  );
-
-  return {
-    data: enriched,
-    pagination,
-  };
-};
 
 const getUserActivityFromDB = async (  requestUserId: string, myUserId: string, query: Record<string, any> ): Promise<{ data: any[]; pagination: any }> => {
   // Get user activity based on type
@@ -434,11 +300,8 @@ export const UserService = {
   createUserToDB,
   getUserProfileFromDB,
   updateProfileToDB,
-  toggleFollowUser,
   unfollowUser,
   getAllUsers,
   getUserProfileByIdFromDB,
-  getFollowerListFromDB,
-  getFollowingListFromDB,
   getUserActivityFromDB,
 };
