@@ -79,6 +79,11 @@ const updateProfile = catchAsync(
       data.image = image;
     }
 
+    if (req.body.shipping_address) {
+      data.shipping_address = JSON.parse(req.body.shipping_address);
+    }
+
+    console.log(data);
     const result = await UserService.updateProfileToDB(user, data);
 
     sendResponse(res, {
@@ -89,23 +94,6 @@ const updateProfile = catchAsync(
     });
   }
 );
-
-// Add followUser
-const toggleFollowUser = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.user?.id;
-  const targetId = req.params.id;
-  const { fcmToken } = req.query;
-
-
-  const result = await UserService.toggleFollowUser(userId, targetId,fcmToken as string);
-
-  sendResponse(res, {
-    success: true,
-    statusCode: StatusCodes.OK,
-    message: result.message,
-    data: result.data,
-  });
-});
 
 // Add unfollowUser
 const unfollowUser = catchAsync(async (req: Request, res: Response) => {
@@ -139,46 +127,6 @@ const getUserProfileById = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Add getFollowerList
-const getFollowerList = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.user?.id;
-  const requestUserId = req.params?.id;
-
-  const patinationOptions = pick(req.query, paginationFields);
-  const result = await UserService.getFollowerListFromDB(
-    requestUserId,
-    userId,
-    req.query
-  );
-
-  sendResponse(res, {
-    success: true,
-    statusCode: StatusCodes.OK,
-    message: 'Follower list retrieved successfully',
-    pagination: result.pagination,
-    data: result.data,
-  });
-});
-// Add getFollowingList
-const getFollowingList = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.user?.id;
-  const requestUserId = req.params?.id;
-
-  const result = await UserService.getFollowingListFromDB(
-    requestUserId,
-    userId,
-    req.query
-  );
-
-  sendResponse(res, {
-    success: true,
-    statusCode: StatusCodes.OK,
-    message: 'Following list retrieved successfully',
-    pagination: result.pagination,
-    data: result.data,
-  });
-});
-
 const getUserActivity = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user?.id;
   const requestUserId = req.params?.id;
@@ -198,17 +146,12 @@ const getUserActivity = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-
-
 export const UserController = {
   createUser,
   getUserProfile,
   updateProfile,
-  toggleFollowUser,
   unfollowUser,
   getAllUsers,
   getUserProfileById,
-  getFollowerList,
-  getFollowingList,
-  getUserActivity
+  getUserActivity,
 };

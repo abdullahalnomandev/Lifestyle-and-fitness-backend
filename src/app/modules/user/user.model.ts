@@ -64,6 +64,11 @@ const userSchema = new Schema<IUser, UserModel>(
     about: {
       type: String,
     },
+    shipping_address: {
+      type: Object,
+      address: { type: String },
+      contact_number: { type: String },
+    },
     profile_mode: {
       type: String,
       enum: Object.values(PROFILE_MODE),

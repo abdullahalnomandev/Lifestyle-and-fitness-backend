@@ -39,12 +39,6 @@ router
     UserController.getUserActivity
   );
 
-router
-  .route('/toggle/follow/:id')
-  .post(
-    auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.SUPER_ADMIN),
-    UserController.toggleFollowUser
-  );
 
 router
   .route('/unfollow/:id')
@@ -53,18 +47,6 @@ router
     UserController.unfollowUser
   );
 
-router
-  .route('/profile/follower-list/:id')
-  .get(
-    auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.SUPER_ADMIN),
-    UserController.getFollowerList
-  );
 
-router
-  .route('/profile/following-list/:id')
-  .get(
-    auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.SUPER_ADMIN),
-    UserController.getFollowingList
-  );
 
 export const UserRoutes = router;

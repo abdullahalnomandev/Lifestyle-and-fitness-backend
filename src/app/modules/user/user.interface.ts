@@ -13,6 +13,10 @@ export interface IUser {
   status: 'active' | 'delete';
   verified: boolean;
   profile_mode: PROFILE_MODE;
+  shipping_address?: {
+    address: string;
+    contact_number: string;
+  };
   image: string;
   token?: string;
   authorization?: {
