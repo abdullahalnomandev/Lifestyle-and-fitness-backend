@@ -284,3 +284,42 @@ export async function updateCheckout(id: string, lineItems: any[]) {
 //         "image": null
 //     }
 // }
+
+//./;
+
+
+
+/**
+ {
+    "data": {
+        "cartCreate": {
+            "cart": {
+                "id": "gid://shopify/Cart/hWN694tp1E1lHW7hG0QczIla?key=8f353514aba2a0cbe6da60ff461cc757",
+                "checkoutUrl": "https://rt1percent.com/cart/c/hWN694tp1E1lHW7hG0QczIla?key=8f353514aba2a0cbe6da60ff461cc757",
+                "lines": {
+                    "edges": [
+                        {
+                            "node": {
+                                "id": "gid://shopify/CartLine/a6448071-62ce-4150-9dc0-3eb3632d5f64?cart=hWN694tp1E1lHW7hG0QczIla",
+                                "quantity": 1,
+                                "merchandise": {
+                                    "id": "gid://shopify/ProductVariant/52035793879381",
+                                    "title": "White / S",
+                                    "product": {
+                                        "title": "Test for development (Copy)"
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "extensions": {
+        "cost": {
+            "requestedQueryCost": 28
+        }
+    }
+}
+ */

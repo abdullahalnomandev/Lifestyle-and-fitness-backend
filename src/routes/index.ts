@@ -13,6 +13,7 @@ import { PreferenceRoutes } from '../app/modules/preference/preferences.route';
 import { StoryRoutes } from '../app/modules/story/story.route';
 import { UserRoutes } from '../app/modules/user/user.route';
 import { UserTokenRoutes } from '../app/modules/userToken';
+import { StoreRoutes } from '../app/modules/store/store.route';
 
 const router = express.Router();
 
@@ -73,6 +74,10 @@ const apiRoutes = [
     path: '/gym-and-fitness-plan',
     route: GymAndFitnessPlanRoutes,
   },
+  {
+    path: '/store',
+    route: StoreRoutes,
+  }
 ];
 
 apiRoutes.forEach(route => router.use(route.path, route.route));

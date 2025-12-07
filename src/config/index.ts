@@ -29,4 +29,8 @@ export default {
     secret_key: process.env.STRIPE_SECREAT_KEY,
     webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
   },
+  shopify: {
+    domain: process.env.SHOPIFY_DOMAIN,
+    storefront_access_token: process.env.SHOPIFY_STORE_FRONT_ACCESS_TOKEN,
+  },
 };
