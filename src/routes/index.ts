@@ -11,6 +11,7 @@ import { PostRoutes } from '../app/modules/post/post.route';
 import { SaveRoutes } from '../app/modules/post/save';
 import { PreferenceRoutes } from '../app/modules/preference/preferences.route';
 import { StoryRoutes } from '../app/modules/story/story.route';
+import { TaskCalenderRoutes } from '../app/modules/GymTask/TaskCalender.route';
 import { UserRoutes } from '../app/modules/user/user.route';
 import { UserTokenRoutes } from '../app/modules/userToken';
 import { StoreRoutes } from '../app/modules/store/store.route';
@@ -53,6 +54,10 @@ const apiRoutes = [
   {
     path: '/story',
     route: StoryRoutes,
+  },
+  {
+    path: '/task-calendar',
+    route: TaskCalenderRoutes,
   },
   {
     path: '/business-and-mindset-plan',
