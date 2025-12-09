@@ -155,6 +155,17 @@ const getAllTaskCalenders = async (query: Record<string, any>) => {
 
   const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+  // Corresponding workout types for each day (order: Mon, Tue, Wed, Thu, Fri, Sat, Sun)
+  const weekWork: Record<string, string> = {
+    Mon: 'pull',
+    Tue: 'push',
+    Wed: 'rest',
+    Thu: 'push',
+    Fri: 'pull',
+    Sat: 'rest',
+    Sun: 'leg'
+  };
+
   const today = dayjs().startOf('day');
 
   // Get Monday of the current week
@@ -175,15 +186,18 @@ const getAllTaskCalenders = async (query: Record<string, any>) => {
   // Create final week result
   const days = weekDays.map((label, idx) => {
     const dateObj = dayjs(startOfWeek).add(idx, 'day'); // clone to avoid mutation
-
     const formatted = dateObj.format('YYYY-MM-DD');
-
-    return {
+    const isActive = dateObj.isSame(today, 'day');
+    const result: any = {
       day: label,
       date: formatted,
       selected: selectedDatesSet.has(formatted),
-      active: dateObj.isSame(today, 'day') ? true : false
+      work: weekWork[label]
     };
+    if (isActive) {
+      result.active = true;
+    }
+    return result;
   });
 
   return { data: days };
