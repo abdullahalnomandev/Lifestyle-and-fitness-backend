@@ -7,7 +7,7 @@ import { TaskCalenderService } from './TaskCalender.service';
 const createTaskCalender = catchAsync(async (req: Request, res: Response) => {
   const data = req.body;
 
-  const result = await TaskCalenderService.createTaskCalender(data,req?.user?.id as string);
+  const result = await TaskCalenderService.createTaskCalendar(data,req?.user?.id as string);
 
   sendResponse(res, {
     success: true,

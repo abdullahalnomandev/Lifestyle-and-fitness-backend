@@ -1,15 +1,15 @@
 import { model, Schema } from 'mongoose';
-import { ITaskCalender, ITaskCalenderModel } from './TaskCalender.interface';
+import { ITaskCalendar, ITaskCalendarModel } from './TaskCalender.interface';
 
-const taskCalenderSchema = new Schema<ITaskCalender, ITaskCalenderModel>(
+const taskCalendarSchema = new Schema<ITaskCalendar, ITaskCalendarModel>(
   {
-    year: {
-      type: Number,
-      required: true,
-    },
     user: {
       type: Schema.Types.ObjectId,
       ref: 'User',
+      required: true,
+    },
+    year: {
+      type: Number,
       required: true,
     },
     month: {
@@ -18,11 +18,15 @@ const taskCalenderSchema = new Schema<ITaskCalender, ITaskCalenderModel>(
       min: 1,
       max: 12,
     },
-    seletectedWorkoutDates: {
-      type: [Date],
-      default: [],
+    selectedStartDate: {
+      type: Date,
+      required: true,
     },
-    workOutDates: {
+    selectedEndDate: {
+      type: Date,
+      required: true,
+    },
+    selectedWorkoutDates: {
       type: [Date],
       default: [],
     },
@@ -38,8 +42,7 @@ const taskCalenderSchema = new Schema<ITaskCalender, ITaskCalenderModel>(
   { timestamps: true }
 );
 
-export const TaskCalender = model<ITaskCalender, ITaskCalenderModel>(
-  'TaskCalender',
-  taskCalenderSchema
+export const TaskCalendar = model<ITaskCalendar, ITaskCalendarModel>(
+  'TaskCalendar',
+  taskCalendarSchema
 );
-

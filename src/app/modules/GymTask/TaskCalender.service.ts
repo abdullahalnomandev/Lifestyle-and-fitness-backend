@@ -1,48 +1,119 @@
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 import QueryBuilder from '../../builder/QueryBuilder';
-import { ITaskCalender } from './TaskCalender.interface';
-import { TaskCalender } from './TaskCalender.model';
 
 import dayjs from 'dayjs';
+import { TaskCalendar } from './TaskCalender.model';
+import { ITaskCalendar } from './TaskCalender.interface';
+import utc from "dayjs/plugin/utc";
 
-const createTaskCalender = async (payload: ITaskCalender, userId: string) => {
-  const { year, month, isCheckedToday,seletectedWorkoutDates } = payload;
-     (payload as any).user = userId;
+dayjs.extend(utc);
 
-  const today = dayjs().startOf('day');
-  const isToday = () => dayjs(today.toDate()).isSame(dayjs(), 'day');
+const createTaskCalendar = async (payload: ITaskCalendar, userId: string) => {
+  const { year, month, selectedStartDate, selectedEndDate, isCheckedToday } = payload;
 
-  // Try to find existing calendar for this user, year, and month
-  let isTaskExist = await TaskCalender.findOne({ user: userId, year, month });
+  // Attach userId
+  (payload as any).user = userId;
 
-  
-  if(isCheckedToday && !isToday){
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'You can not check without today');
+  // Always use UTC for clean MongoDB date storage
+  const today = dayjs.utc().startOf('day');
+  const start = dayjs.utc(selectedStartDate).startOf('day');
+  const end = dayjs.utc(selectedEndDate).startOf('day');
+
+  // Validate year & month not in the past
+  const thisYear = today.year();
+  const thisMonth = today.month() + 1;
+
+  if (year < thisYear || (year === thisYear && month < thisMonth)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Cannot select a year/month before today');
   }
 
-    if (!isTaskExist ) {
-      if (isCheckedToday && isToday()) {
-        payload.seletectedWorkoutDates = [
-          ...(payload.seletectedWorkoutDates || []),
-          today.toDate(),
-        ];
-      }
+  // Validate start/end dates not before today
+  if (start.isBefore(today)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'selectedStartDate cannot be before today');
+  }
+
+  if (end.isBefore(today)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'selectedEndDate cannot be before today');
+  }
+
+  // Validate dates order
+  if (end.isBefore(start)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'selectedEndDate must be after selectedStartDate');
+  }
+
+  // Validate isCheckedToday
+  const todayIsInRange =
+    today.isSame(start) ||
+    today.isSame(end) ||
+    (today.isAfter(start) && today.isBefore(end));
+
+  if (isCheckedToday && !todayIsInRange) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Cannot check today because today is not within the selected start and end dates'
+    );
+  }
+
+  // Check if a calendar already exists
+  let existingTask = await TaskCalendar.findOne({ user: userId, year, month });
+
+  // ------------------------------------------
+  // IF NOT EXISTS → CREATE NEW CALENDAR
+  // ------------------------------------------
+  if (!existingTask) {
+    payload.selectedWorkoutDates = [];
+
+    if (isCheckedToday) {
+      payload.selectedWorkoutDates.push(today.toDate());
     }
 
-  return taskCalender;
+    const taskCalendar = await TaskCalendar.create(payload);
+    return taskCalendar;
+  }
+
+  // ------------------------------------------
+  // IF EXISTS → UPDATE CALENDAR
+  // ------------------------------------------
+  existingTask.selectedStartDate = selectedStartDate;
+  existingTask.selectedEndDate = selectedEndDate;
+
+  if (!Array.isArray(existingTask.selectedWorkoutDates)) {
+    existingTask.selectedWorkoutDates = [];
+  }
+
+  const todayDate = today.toDate();
+
+  if (isCheckedToday) {
+    const alreadyExists = existingTask.selectedWorkoutDates.some(d =>
+      dayjs(d).isSame(today, 'day')
+    );
+
+    if (!alreadyExists) {
+      existingTask.selectedWorkoutDates.push(todayDate);
+    }
+  } else {
+    // Remove today's date if user unchecks
+    existingTask.selectedWorkoutDates = existingTask.selectedWorkoutDates.filter(
+      d => !dayjs(d).isSame(today, 'day')
+    );
+  }
+
+  await existingTask.save();
+  return existingTask;
 };
+
 
 const updateTaskCalender = async (
   id: string,
-  payload: Partial<ITaskCalender>
+  payload: Partial<ITaskCalendar>
 ) => {
-  const existing = await TaskCalender.findById(id).lean();
+  const existing = await TaskCalendar.findById(id).lean();
   if (!existing) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Task calendar not found');
   }
 
-  const updated = await TaskCalender.findByIdAndUpdate(id, payload, {
+  const updated = await TaskCalendar.findByIdAndUpdate(id, payload, {
     new: true,
   });
   if (!updated) {
@@ -52,7 +123,7 @@ const updateTaskCalender = async (
 };
 
 const deleteTaskCalender = async (taskCalenderId: string) => {
-  const deleted = await TaskCalender.findByIdAndDelete(taskCalenderId);
+  const deleted = await TaskCalendar.findByIdAndDelete(taskCalenderId);
 
   if (!deleted) {
     throw new ApiError(
@@ -65,7 +136,7 @@ const deleteTaskCalender = async (taskCalenderId: string) => {
 };
 
 const findById = async (taskCalenderId: string) => {
-  const taskCalender = await TaskCalender.findById(taskCalenderId).lean();
+  const taskCalender = await TaskCalendar.findById(taskCalenderId).lean();
   if (!taskCalender) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Task calendar not found');
   }
@@ -73,20 +144,51 @@ const findById = async (taskCalenderId: string) => {
 };
 
 const getAllTaskCalenders = async (query: Record<string, any>) => {
-  const taskCalenderQuery = new QueryBuilder(TaskCalender.find(), query)
-    .fields()
-    .filter()
-    .sort()
-    .paginate();
+  const { year, month } = query;
 
-  const data = await taskCalenderQuery.modelQuery.lean();
-  const pagination = await taskCalenderQuery.getPaginationInfo();
+  if (!year || !month) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Year and month are required');
+  }
 
-  return {
-    data,
-    pagination,
-  };
+  // Find TaskCalendar
+  const taskCalendar = await TaskCalendar.findOne({ year, month }).lean();
+
+  const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  const today = dayjs().startOf('day');
+
+  // Get Monday of the current week
+  const startOfWeek =
+    today.day() === 0
+      ? today.subtract(6, 'day') // If Sunday -> go back 6 days
+      : today.subtract(today.day() - 1, 'day');
+
+  // Prepare selected workout dates as formatted strings
+  const selectedDatesSet = new Set(
+    Array.isArray(taskCalendar?.selectedWorkoutDates)
+      ? taskCalendar.selectedWorkoutDates.map((d: any) =>
+          dayjs(d).startOf('day').format('YYYY-MM-DD')
+        )
+      : []
+  );
+
+  // Create final week result
+  const days = weekDays.map((label, idx) => {
+    const dateObj = dayjs(startOfWeek).add(idx, 'day'); // clone to avoid mutation
+
+    const formatted = dateObj.format('YYYY-MM-DD');
+
+    return {
+      day: label,
+      date: formatted,
+      selected: selectedDatesSet.has(formatted),
+      active: dateObj.isSame(today, 'day') ? true : false
+    };
+  });
+
+  return { data: days };
 };
+
 
 const getTaskCalendersByYearAndMonth = async (
   year: number,
@@ -99,7 +201,7 @@ const getTaskCalendersByYearAndMonth = async (
   };
 
   const taskCalenderQuery = new QueryBuilder(
-    TaskCalender.find(findQuery),
+    TaskCalendar.find(findQuery),
     query
   )
     .fields()
@@ -117,7 +219,7 @@ const getTaskCalendersByYearAndMonth = async (
 };
 
 export const TaskCalenderService = {
-  createTaskCalender,
+  createTaskCalendar,
   updateTaskCalender,
   deleteTaskCalender,
   findById,
