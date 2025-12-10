@@ -13,7 +13,9 @@ router.get('/products/:slug', auth(USER_ROLES.ADMIN, USER_ROLES.USER,USER_ROLES.
 
 router.get('/product/:id', auth(USER_ROLES.ADMIN, USER_ROLES.USER,USER_ROLES.SUPER_ADMIN), StoreController.getProductById);
 
-router.post('/product/ceckout', auth(USER_ROLES.ADMIN, USER_ROLES.USER,USER_ROLES.SUPER_ADMIN), StoreController.createCheckoutSession);
+// router.post('/product/ceckout', auth(USER_ROLES.ADMIN, USER_ROLES.USER,USER_ROLES.SUPER_ADMIN), StoreController.createCheckoutSession);
+
+router.post('/product/create-checkout',auth(USER_ROLES.ADMIN,USER_ROLES.USER,USER_ROLES.SUPER_ADMIN),StoreController.createCheckout)
 
 
 export const StoreRoutes = router;

@@ -43,19 +43,33 @@ const getProductById = catchAsync(async (req: Request, res: Response) => {
 });
 
 
-const createCheckoutSession = catchAsync(async (req: Request, res: Response) => {
-  const result = await  StoreService.createCheckoutSession(req.body);
+// const createCheckoutSession = catchAsync(async (req: Request, res: Response) => {
+//   const result = await  StoreService.createCheckoutSession(req.body);
+//   sendResponse(res, {
+//     success: true,
+//     statusCode: StatusCodes.OK,
+//     message: 'Checkout session created successfully',
+//     data: result.data,
+//   });
+// });
+
+
+const createCheckout = catchAsync(async (req: Request, res: Response) => {
+  const result = await StoreService.createCheckout(req.body,req.user?.id as string);
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'Checkout session created successfully',
+    message: 'Checkout created successfully',
     data: result.data,
   });
 });
+
+
 
 export const StoreController = {
   getProductCollections,
   getProductsByCollectionHandle,
   getProductById,
-  createCheckoutSession
+  // createCheckoutSession,
+  createCheckout
 };

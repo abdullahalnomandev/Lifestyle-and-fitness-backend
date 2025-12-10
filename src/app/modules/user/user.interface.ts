@@ -16,6 +16,9 @@ export interface IUser {
   shipping_address?: {
     address: string;
     contact_number: string;
+    city: string;
+    country: string;
+    zip: string;
   };
   image: string;
   token?: string;

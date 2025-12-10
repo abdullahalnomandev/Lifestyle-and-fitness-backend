@@ -32,5 +32,6 @@ export default {
   shopify: {
     domain: process.env.SHOPIFY_DOMAIN,
     storefront_access_token: process.env.SHOPIFY_STORE_FRONT_ACCESS_TOKEN,
+    admin_access_token: process.env.SHOPIFY_ADMIN_ACCESS_TOKEN,
   },
 };
