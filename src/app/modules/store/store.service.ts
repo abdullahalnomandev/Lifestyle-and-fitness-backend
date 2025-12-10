@@ -8,8 +8,8 @@ import {
   createProductCheckout,
   getProductVariantDetails,
 } from './shopify-gql-api/gql-api';
-import { LineItemArray } from './store.interface';
 import { User } from '../user/user.model';
+import { CheckoutRequest, LineItem } from './store.interface';
 
 const getAllCollection = async (userId: string): Promise<any> => {
   const productCollections = await getAllProductsCollection(20);
@@ -119,25 +119,31 @@ const getProductById = async (handle: string): Promise<any> => {
 // };
 
 const createCheckout = async (
-  lineItems: LineItemArray,
+  lineItems: CheckoutRequest,
   userId: string
 ): Promise<{ data: { id: string; webUrl: string } }> => {
-  if (!lineItems || lineItems.length === 0) {
+
+  if (!lineItems || lineItems.lineItems.length === 0) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Cart is empty');
   }
 
-  // Example: you might want the User or not, but the unfinished commented out part isn't used here
+  const isUserExist = await User.findById(userId);
 
-  // Collect cleanLineItems including taxLines and taxAmount after resolving variant price asynchronously
+  // Track total amount (product subtotal + all taxes)
+  let totalAmount = 0;
+
   const cleanLineItems = await Promise.all(
-    lineItems.map(async ({ variantId, quantity, currencyCode }) => {
+    lineItems.lineItems.map(async ({ variantId, quantity, currencyCode }) => {
       const variantDetails = await getProductVariantDetails(variantId);
       const variantPrice = Number(variantDetails?.productVariant?.price || 0);
 
       // Simple tax logic: add a tax amount directly to the lineSubtotal (e.g., let's assume a fixed rate 10%)
-      const taxRate = 0.1; // Example: 10%
+      const taxRate = 0.06; // Example: 6%
       const lineSubtotal = variantPrice * quantity;
       const taxAmount = lineSubtotal * taxRate;
+
+      // Keep running total (subtotal + tax for each line)
+      totalAmount += lineSubtotal + taxAmount;
 
       return {
         variantId,
@@ -148,6 +154,7 @@ const createCheckout = async (
             rate: taxRate,
             priceSet: {
               shopMoney: {
+                // Here amount is the total tax amount of the line total
                 amount: taxAmount,
                 currencyCode: currencyCode,
               }
@@ -158,42 +165,47 @@ const createCheckout = async (
     })
   );
 
-//   const result = await createProductCheckout({
-//     order: {
-//       currency: lineItems[0].currencyCode || "GBP",
-//       email: isUserExist?.email,
-//       poNumber: isUserExist?.shipping_address?.contact_number,
-//       lineItems: cleanLineItems,
-//       transactions: [
-//         {
-//           kind: "SALE",
-//           status: "SUCCESS",
-//           amountSet: {
-//             shopMoney: {
-//               amount: 100, // static for now, adjust as needed
-//               currencyCode: lineItems[0].currencyCode || "GBP",
-//             },
-//           },
-//         },
-//       ],
-//       shippingAddress: {
-//         firstName: isUserExist?.name,
-//         address1: isUserExist?.shipping_address?.address,
-//         city: isUserExist?.shipping_address?.city,
-//         country: isUserExist?.shipping_address?.country,
-//         zip: isUserExist?.shipping_address?.zip,
-//       },
-//     },
-//   });
+  const data = {
+    order: {
+      currency: lineItems.lineItems[0].currencyCode || "GBP",
+      email: isUserExist?.email,
+      poNumber: isUserExist?.shipping_address?.contact_number,
+      lineItems: cleanLineItems,
+      transactions: [
+        {
+          kind: "SALE",
+          status: "SUCCESS",
+          amountSet: {
+            shopMoney: {
+              amount: totalAmount, // total product price * quantity + tax
+              currencyCode: lineItems.lineItems[0].currencyCode || "GBP",
+            },
+          },
+        },
+      ],
+      shippingAddress: {
+        firstName: isUserExist?.name,
+        address1: isUserExist?.shipping_address?.address,
+        city: isUserExist?.shipping_address?.city,
+        country: isUserExist?.shipping_address?.country,
+        zip: isUserExist?.shipping_address?.zip,
+      },
+    },
+  };
 
-//   console.log({ result });
+  console.log('data->',data)
+  return {data}
 
-//   return {
-//     data: {
-//       id: result?.id,
-//       webUrl: result?.webUrl,
-//     },
-//   };
+  // const result = await createProductCheckout(data);
+
+  // console.log({ result });
+
+  // return {
+  //   data: {
+  //     id: result?.id,
+  //     webUrl: result?.webUrl,
+  //   },
+  // };
 };
 
 export const StoreService = {
