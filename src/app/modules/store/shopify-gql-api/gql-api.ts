@@ -1,6 +1,6 @@
 import axios, { AxiosInstance } from "axios";
 import config from "../../../../config";
-import { CREATE_ORDER, GET_ALL_COLLECTION, GET_ALL_PRODUCT_COLLECTION, GET_ALL_PRODUCTS, GET_PRODUCT_DETILS_BY_HANDLE, GET_VARIANT_DETAILS } from "./query";
+import { CREATE_ORDER, DELETE_ORDER, GET_ALL_COLLECTION, GET_ALL_PRODUCT_COLLECTION, GET_ALL_PRODUCTS, GET_PRODUCT_DETILS_BY_HANDLE, GET_VARIANT_DETAILS, MAKE_ORDER_PAID } from "./query";
 
 
 function createShopifyClient(type: "storefront" | "admin"): AxiosInstance {
@@ -17,7 +17,6 @@ function createShopifyClient(type: "storefront" | "admin"): AxiosInstance {
 
 
 async function runShopifyQuery(client: AxiosInstance, query: string, variables?: object): Promise<any> {
-  console.log(variables)
   try {
     const response = await client.post("", { query, variables });
     return response?.data?.data;
@@ -39,6 +38,8 @@ export const getProductByHandle = async (handle: string) => runShopifyQuery(stor
 //ADMIN QUERIES
 export const createProductCheckout = async (order: any) => runShopifyQuery(adminClient, CREATE_ORDER, order);
 export const getProductVariantDetails = async (id: string) => runShopifyQuery(adminClient, GET_VARIANT_DETAILS, {id});
+export const makeOrderPaid = async (id: string) => runShopifyQuery(adminClient, MAKE_ORDER_PAID, { input: {id}});
+export const orderDelete = async (orderId: string) => runShopifyQuery(adminClient, DELETE_ORDER, { orderId});
 
 // Admin Queries
 // export const createCheckout = async (lines: { merchandiseId: string; quantity: number }[]) => runShopifyQuery(storefrontClient, CREATE_CEHECKOUT, lines);

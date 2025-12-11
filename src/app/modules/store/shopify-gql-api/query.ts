@@ -119,31 +119,6 @@ export const GET_PRODUCT_DETILS_BY_HANDLE = `query GET_PRODUCT_DETAILS($handle:S
 }
 `;
 
-// export const CREATE_CEHECKOUT = `mutation CreateCart($lines: [CartLineInput!]!) {
-//   cartCreate(input: { lines: $lines }) {
-//     cart {
-//       id
-//       checkoutUrl
-//       lines(first: 10) {
-//         edges {
-//           node {
-//             id
-//             quantity
-//             merchandise {
-//               ... on ProductVariant {
-//                 id
-//                 title
-//                 product {
-//                   title
-//                 }
-//               }
-//             }
-//           }
-//         }
-//       }
-//     }
-//   }
-// }`;
 
 export const CREATE_ORDER = `mutation orderCreate(
   $order: OrderCreateOrderInput!
@@ -198,7 +173,33 @@ export const GET_VARIANT_DETAILS= ` query getVariant($id: ID!) {
     barcode
     inventoryQuantity
     product {
+      description
       title
+    }
+  }
+}
+`
+export const MAKE_ORDER_PAID = `mutation OrderMarkAsPaid($input: OrderMarkAsPaidInput!) {
+  orderMarkAsPaid(input: $input) {
+    order {
+      id
+      displayFinancialStatus
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
+`;
+
+export const DELETE_ORDER = `mutation OrderDelete($orderId: ID!) {
+  orderDelete(orderId: $orderId) {
+    deletedId
+    userErrors {
+      field
+      message
+      code
     }
   }
 }

@@ -18,8 +18,6 @@ const deleteLike = async (postId: string, userId: string) => {
     }
   );
 
-  console.log({ like: like?._id, userId });
-
   if (!like) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Like not found');
   }

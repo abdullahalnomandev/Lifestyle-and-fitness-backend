@@ -83,7 +83,6 @@ const updateProfile = catchAsync(
       data.shipping_address = JSON.parse(req.body.shipping_address);
     }
 
-    console.log(data);
     const result = await UserService.updateProfileToDB(user, data);
 
     sendResponse(res, {

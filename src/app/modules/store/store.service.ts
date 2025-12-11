@@ -7,9 +7,15 @@ import {
   getProductByHandle,
   createProductCheckout,
   getProductVariantDetails,
+  makeOrderPaid,
+  orderDelete,
 } from './shopify-gql-api/gql-api';
 import { User } from '../user/user.model';
 import { CheckoutRequest, LineItem } from './store.interface';
+import stripe from '../../../config/stripe';
+import config from '../../../config';
+import { Response } from 'express';
+import { UserToken } from '../userToken';
 
 const getAllCollection = async (userId: string): Promise<any> => {
   const productCollections = await getAllProductsCollection(20);
@@ -100,118 +106,191 @@ const getProductById = async (handle: string): Promise<any> => {
   };
 };
 
-// const createCheckoutSession = async (
-//   lines: { merchandiseId: string; quantity: number }[]
-// ) => {
-//   if (lines.length === 0) {
-//     throw new ApiError(StatusCodes.BAD_REQUEST, 'Cart is empty');
-//   }
-
-//   const result = await createCheckout(lines);
-
-//   console.log({ result });
-//   return {
-//     data: {
-//       id: result?.cartCreate?.cart?.id,
-//       checkoutUrl: result?.cartCreate?.cart?.checkoutUrl,
-//     },
-//   };
-// };
-
 const createCheckout = async (
   lineItems: CheckoutRequest,
-  userId: string
-): Promise<{ data: { id: string; webUrl: string } }> => {
-
+  userId: string,
+  rootUrl: string
+): Promise<{ data: { paymentUrl: string } | null }> => {
   if (!lineItems || lineItems.lineItems.length === 0) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Cart is empty');
   }
 
   const isUserExist = await User.findById(userId);
 
-  // Track total amount (product subtotal + all taxes)
+  // Track total amount (product subtotal + all taxes), but will sum per line now for Stripe
   let totalAmount = 0;
 
-  const cleanLineItems = await Promise.all(
-    lineItems.lineItems.map(async ({ variantId, quantity, currencyCode }) => {
-      const variantDetails = await getProductVariantDetails(variantId);
-      const variantPrice = Number(variantDetails?.productVariant?.price || 0);
+  // Prepare product "names" and "descriptions" for session-level metadata or summary,
+  // plus a joined title representation e.g. "Tshirt (White/XL)"
+  let names: string[] = [];
+  let descriptions: string[] = [];
+  let displayTitles: string[] = [];
 
-      // Simple tax logic: add a tax amount directly to the lineSubtotal (e.g., let's assume a fixed rate 10%)
-      const taxRate = 0.06; // Example: 6%
-      const lineSubtotal = variantPrice * quantity;
-      const taxAmount = lineSubtotal * taxRate;
+  // Prepare cleanLineItems and Stripe line_items in parallel
+  const cleanLineItems: any[] = [];
+  const stripeLineItems: any[] = [];
 
-      // Keep running total (subtotal + tax for each line)
-      totalAmount += lineSubtotal + taxAmount;
+  for (const { variantId, quantity, currencyCode } of lineItems.lineItems) {
+    const variantDetails = await getProductVariantDetails(variantId);
 
-      return {
-        variantId,
-        quantity,
-        taxLines: [
-          {
-            title: "State tax",
-            rate: taxRate,
-            priceSet: {
-              shopMoney: {
-                // Here amount is the total tax amount of the line total
-                amount: taxAmount,
-                currencyCode: currencyCode,
-              }
-            }
-          }
-        ],
-      };
-    })
-  );
+    const title = variantDetails.productVariant?.title || '';
+    const name = variantDetails.productVariant.product?.title || '';
+    const description =
+      variantDetails.productVariant.product?.description || '';
+
+    // Compose a display title such as "Tshirt (White/XL)"
+    let optionStr = '';
+    if (
+      variantDetails.productVariant?.title &&
+      variantDetails.productVariant?.title.toLowerCase() !== 'default title'
+    ) {
+      optionStr = variantDetails.productVariant?.title;
+    }
+    let displayTitle = name;
+    if (optionStr) {
+      displayTitle += ` (${optionStr})`;
+    }
+    displayTitles.push(displayTitle);
+
+    names.push(name);
+    descriptions.push(description);
+
+    const variantPrice = Number(variantDetails?.productVariant?.price || 0);
+
+    // Simple tax logic: add a tax amount directly to the lineSubtotal (e.g., let's assume a fixed rate 6%)
+    const taxRate = 0.06; // Example: 6%
+    const lineSubtotal = variantPrice * quantity;
+    const taxAmount = lineSubtotal * taxRate;
+
+    // Keep running total (subtotal + tax for each line)
+    totalAmount += lineSubtotal + taxAmount;
+
+    cleanLineItems.push({
+      variantId,
+      quantity,
+      // You could also add displayTitle here if needed for your own records or db
+      title: displayTitle,
+      taxLines: [
+        {
+          title: 'State tax',
+          rate: taxRate,
+          priceSet: {
+            shopMoney: {
+              amount: Number(taxAmount.toFixed(1)),
+              currencyCode: currencyCode,
+            },
+          },
+        },
+      ],
+    });
+
+    // This will create a stripe line_items for each variant
+    stripeLineItems.push({
+      price_data: {
+        currency: (currencyCode || 'usd').toLowerCase(),
+        product_data: {
+          name: displayTitle, // Show e.g. "Tshirt (White/XL)" in Stripe checkout
+          description: description,
+        },
+        unit_amount: Math.round(variantPrice * (1 + taxRate) * 100), // price+tax per item in cents
+      },
+      quantity: quantity,
+    });
+  }
 
   const data = {
     order: {
-      currency: lineItems.lineItems[0].currencyCode || "GBP",
+      currency: lineItems.lineItems[0].currencyCode || 'GBP',
       email: isUserExist?.email,
       poNumber: isUserExist?.shipping_address?.contact_number,
       lineItems: cleanLineItems,
       transactions: [
         {
-          kind: "SALE",
-          status: "SUCCESS",
+          kind: 'SALE',
+          status: 'PENDING',
           amountSet: {
             shopMoney: {
-              amount: totalAmount, // total product price * quantity + tax
-              currencyCode: lineItems.lineItems[0].currencyCode || "GBP",
+              amount: Number(totalAmount.toFixed(2)),
+              currencyCode: lineItems.lineItems[0].currencyCode || 'GBP',
             },
           },
         },
       ],
       shippingAddress: {
-        firstName: isUserExist?.name,
+        firstName: isUserExist?.name?.split(' ')?.[0] || '',
+        lastName: isUserExist?.name?.split(' ')?.slice(1).join(' ') || '',
         address1: isUserExist?.shipping_address?.address,
         city: isUserExist?.shipping_address?.city,
         country: isUserExist?.shipping_address?.country,
+        // countryCode: isUserExist?.shipping_address?.country,
         zip: isUserExist?.shipping_address?.zip,
       },
     },
   };
+  const product = await createProductCheckout(data);
 
-  console.log('data->',data)
-  return {data}
+  const checkoutSession = await stripe.checkout.sessions.create({
+    payment_method_types: ['card'],
+    mode: 'payment',
+    customer_email: isUserExist?.email,
+    line_items: stripeLineItems,
+    metadata: {
+      userId: userId,
+      productTitles: displayTitles.join(', '),
+    },
 
-  // const result = await createProductCheckout(data);
+    success_url: `${rootUrl}/api/v1/store/webhook/${encodeURIComponent(
+      product?.orderCreate?.order?.id
+    )}?status=success&userId=${userId}`,
+    cancel_url: `${rootUrl}/api/v1/store/webhook/${encodeURIComponent(
+      product?.orderCreate?.order?.id
+    )}?status=cancel&userId=${userId}`,
+  });
 
-  // console.log({ result });
+  return {
+    data: {
+      paymentUrl: checkoutSession.url ?? '',
+    },
+  };
+};
 
-  // return {
-  //   data: {
-  //     id: result?.id,
-  //     webUrl: result?.webUrl,
-  //   },
-  // };
+const updateOrderStatus = async (
+  res: Response,
+  orderId: string,
+  status: 'success' | 'cancel',
+  userId: string
+) => {
+  if (status === 'success') {
+    await makeOrderPaid(orderId);
+
+    const userToken = await UserToken.findOne({ user: userId });
+    if (!userToken) {
+      await UserToken.create({ user: userId, numberOfToken: 1 });
+    } else {
+      await UserToken.updateOne(
+        { user: userId },
+        { $inc: { numberOfToken: 1 } }
+      );
+    }
+
+    res.redirect(
+      `${config.front_end_app_url}/success?orderId=${orderId}&userId=${userId}`
+    );
+  } else {
+    if (status === 'cancel') {
+      await orderDelete(orderId);
+
+      res.redirect(
+        `${config.front_end_app_url}/cancel?orderId=${orderId}&userId=${userId}`
+      );
+    }
+  }
 };
 
 export const StoreService = {
   getAllCollection,
   getProductsByCollectionHnadle,
   getProductById,
-//   createCheckoutSession,
   createCheckout,
+  updateOrderStatus,
 };

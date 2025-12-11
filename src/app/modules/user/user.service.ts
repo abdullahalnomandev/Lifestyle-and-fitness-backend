@@ -30,7 +30,6 @@ import { Story } from '../story/story.model';
 const createUserToDB = async (
   payload: Partial<IUser>
 ): Promise<IUser | { accessToken: string }> => {
-  console.log({ payload });
   if (!payload.password && !payload.google_id_token && !payload.mobile) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
@@ -157,7 +156,6 @@ const updateProfileToDB = async (
     delete payload.email;
   }
 
-  console.log(payload.image);
   if (payload.image) {
     unlinkFile(payload.image as string);
   }

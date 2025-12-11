@@ -13,7 +13,6 @@ const createGymAndFitnessPlan = catchAsync(
   async (req: Request, res: Response) => {
     const user = req.user;
     const image = getSingleFilePath(req.files, 'image');
-    console.log(image)
     const data: any = {
       ...req.body
     };

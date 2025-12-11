@@ -170,7 +170,6 @@ const getAllCommentReply = async (commentId: string, userId: string, query: Reco
 
 
 const deleteCommentReply = async (id: string,userId:string) => {
-  console.log({id,userId})
   const deletedComment = await CommentReply.findOneAndDelete({_id:id,creator:userId});
   if (!deletedComment) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Comment not found');
@@ -181,7 +180,6 @@ const deleteCommentReply = async (id: string,userId:string) => {
 
 
 const toggleCommentLike = async (id: string, userId: string) => {
-  console.log({id,userId})
   const comment = await Comment.findById(id);
   if (!comment) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Comment not found');

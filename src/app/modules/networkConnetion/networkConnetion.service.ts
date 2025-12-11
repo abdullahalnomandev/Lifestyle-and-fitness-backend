@@ -150,8 +150,6 @@ const getAllFromDB = async (query: Record<string, any>, userId: string) => {
     .populate('requestTo', 'name image')
     .lean();
 
-    console.log(rawData)
-
   const data = rawData.map((item) => {
       const isRequester = item.requestFrom?._id?.toString() === userId;
       const isReceiver = item.requestTo?._id?.toString() === userId;

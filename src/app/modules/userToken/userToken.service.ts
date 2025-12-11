@@ -6,8 +6,11 @@ const createToken = async (id: string): Promise<IUserToken | null> => {
   return result;
 };
 
-const getSingleToken = async (id: string): Promise<IUserToken | null> => {
-  const result = await UserToken.findOne({ user: id });
+const getSingleToken = async (id: string): Promise<IUserToken> => {
+  let result = await UserToken.findOne({ user: id });
+  if (!result) {
+    result = await UserToken.create({ user: id, numberOfToken: 0 });
+  }
   return result;
 };
 

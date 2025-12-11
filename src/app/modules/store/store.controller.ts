@@ -55,7 +55,8 @@ const getProductById = catchAsync(async (req: Request, res: Response) => {
 
 
 const createCheckout = catchAsync(async (req: Request, res: Response) => {
-  const result = await StoreService.createCheckout(req.body,req.user?.id as string);
+  const origin = `${req.protocol}://${req.get('host')}`;
+  const result = await StoreService.createCheckout(req.body,req.user?.id as string,origin);
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
@@ -65,11 +66,19 @@ const createCheckout = catchAsync(async (req: Request, res: Response) => {
 });
 
 
+const updateOrderStatus = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const status = req.query?.status as 'success' | 'cancel';
+  const userId = req.query?.userId as string;
+  await StoreService.updateOrderStatus(res, id, status, userId);
+});
+
+
 
 export const StoreController = {
   getProductCollections,
   getProductsByCollectionHandle,
   getProductById,
-  // createCheckoutSession,
-  createCheckout
+  createCheckout,
+  updateOrderStatus
 };

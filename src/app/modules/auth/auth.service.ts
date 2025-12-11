@@ -48,7 +48,6 @@ const loginUserFromDB = async (payload: ILoginData) => {
       const isExist = await User.exists({ email: payload.email })
         .select('+auth_provider')
         .lean();
-      console.log({ called: 'called' });
       if (
         isExist?.auth_provider === USER_AUTH_PROVIDER.GOOGLE ||
         isExist?.auth_provider === USER_AUTH_PROVIDER.MOBILE
@@ -60,8 +59,6 @@ const loginUserFromDB = async (payload: ILoginData) => {
       }
 
       userInfo = await User.findOne({ email }).select('+password');
-
-      console.log(userInfo);
 
       if (
         userInfo &&
