@@ -30,6 +30,14 @@ const taskCalendarSchema = new Schema<ITaskCalendar, ITaskCalendarModel>(
       type: [Date],
       default: [],
     },
+    targetedWorkoutDates: {
+      type: [Date],
+      default: [],
+    },
+    workoutPictures: {
+      type: [{ date: Date, image: String }],
+      default: [],
+    },
     createdAt: {
       type: Date,
       default: Date.now,
