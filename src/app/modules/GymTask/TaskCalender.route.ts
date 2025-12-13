@@ -2,6 +2,7 @@ import express from 'express';
 import { USER_ROLES } from '../../../enums/user';
 import auth from '../../middlewares/auth';
 import { TaskCalenderController } from './TaskCalender.controller';
+import fileUploadHandler from '../../middlewares/fileUploadHandler';
 
 const router = express.Router();
 
@@ -16,27 +17,17 @@ router
     TaskCalenderController.getAllTaskCalenders
   );
 
-router
-  .route('/:id')
-  .get(
-    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
-    TaskCalenderController.getSingleTaskCalender
-  )
-  .patch(
-    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
-    TaskCalenderController.updateTaskCalender
-  )
-  .delete(
-    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
-    TaskCalenderController.deleteTaskCalender
-  );
+router.post('/upload-workout-picture',
+  fileUploadHandler(),
+  auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
+  TaskCalenderController.uploadWorkoutPicture
+);
 
-router
-  .route('/year/:year/month/:month')
-  .get(
-    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
-    TaskCalenderController.getTaskCalendersByYearAndMonth
-  );
+router.get('/workout-progress',
+  auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
+  TaskCalenderController.getWorkoutProgress
+);
+
 
 export const TaskCalenderRoutes = router;
 

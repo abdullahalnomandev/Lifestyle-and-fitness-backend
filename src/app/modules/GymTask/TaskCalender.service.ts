@@ -28,25 +28,26 @@ const createTaskCalendar = async (payload: ITaskCalendar, userId: string) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Cannot select a year/month before today');
   }
 
+
+  // Check if a calendar already exists
+  let existingTask = await TaskCalendar.findOne({ user: userId, year, month });
+
   // Validate start/end dates not before today
-  if (start.isBefore(today)) {
+  if (!existingTask && start.isBefore(today)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'selectedStartDate cannot be before today');
   }
 
-  if (end.isBefore(today)) {
+  if (!existingTask && end.isBefore(today)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'selectedEndDate cannot be before today');
   }
 
   // Validate dates order
-  if (end.isBefore(start)) {
+  if (!existingTask && end.isBefore(start)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'selectedEndDate must be after selectedStartDate');
   }
 
   // Validate isCheckedToday
-  const todayIsInRange =
-    today.isSame(start) ||
-    today.isSame(end) ||
-    (today.isAfter(start) && today.isBefore(end));
+  const todayIsInRange = today.isSame(start) || today.isSame(end) || (today.isAfter(start) && today.isBefore(end));
 
   if (isCheckedToday && !todayIsInRange) {
     throw new ApiError(
@@ -54,9 +55,6 @@ const createTaskCalendar = async (payload: ITaskCalendar, userId: string) => {
       'Cannot check today because today is not within the selected start and end dates'
     );
   }
-
-  // Check if a calendar already exists
-  let existingTask = await TaskCalendar.findOne({ user: userId, year, month });
 
   // ------------------------------------------
   // IF NOT EXISTS → CREATE NEW CALENDAR
@@ -104,44 +102,6 @@ const createTaskCalendar = async (payload: ITaskCalendar, userId: string) => {
 };
 
 
-const updateTaskCalender = async (
-  id: string,
-  payload: Partial<ITaskCalendar>
-) => {
-  const existing = await TaskCalendar.findById(id).lean();
-  if (!existing) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Task calendar not found');
-  }
-
-  const updated = await TaskCalendar.findByIdAndUpdate(id, payload, {
-    new: true,
-  });
-  if (!updated) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Task calendar not found');
-  }
-  return updated;
-};
-
-const deleteTaskCalender = async (taskCalenderId: string) => {
-  const deleted = await TaskCalendar.findByIdAndDelete(taskCalenderId);
-
-  if (!deleted) {
-    throw new ApiError(
-      StatusCodes.NOT_FOUND,
-      'Task calendar not found or you do not have permission to delete this task calendar'
-    );
-  }
-
-  return deleted;
-};
-
-const findById = async (taskCalenderId: string) => {
-  const taskCalender = await TaskCalendar.findById(taskCalenderId).lean();
-  if (!taskCalender) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Task calendar not found');
-  }
-  return taskCalender;
-};
 
 const getAllTaskCalenders = async (query: Record<string, any>) => {
   const { year, month } = query;
@@ -178,8 +138,8 @@ const getAllTaskCalenders = async (query: Record<string, any>) => {
   const selectedDatesSet = new Set(
     Array.isArray(taskCalendar?.selectedWorkoutDates)
       ? taskCalendar.selectedWorkoutDates.map((d: any) =>
-          dayjs(d).startOf('day').format('YYYY-MM-DD')
-        )
+        dayjs(d).startOf('day').format('YYYY-MM-DD')
+      )
       : []
   );
 
@@ -204,40 +164,97 @@ const getAllTaskCalenders = async (query: Record<string, any>) => {
 };
 
 
-const getTaskCalendersByYearAndMonth = async (
-  year: number,
-  month: number,
-  query: Record<string, any>
-) => {
-  const findQuery: any = {
-    year,
-    month,
+const uploadWorkoutPicture = async (user: any, images: string[]) => {
+  const userId = user?.id;
+
+  if (!userId) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+  }
+
+  const taskCalendar = await TaskCalendar.findOne({ user: userId });
+
+  if (!taskCalendar) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Task calendar not found for user');
+  }
+
+  console.log('Uploading images:', images);
+
+  // Push directly into the array of the document instance
+  taskCalendar.workoutPictures.push(
+    ...images.map(img => ({ date: new Date(), image: img }))
+  );
+
+  await taskCalendar.save();
+
+  return taskCalendar;
+};
+
+
+
+const getWorkoutProgress = async (userId: string, query: Record<string, any>) => {
+  const getBy = query.getBy;
+
+  if (!getBy || !["weekly", "monthly", "yearly", "all"].includes(getBy)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Valid getBy: weekly/monthly/yearly/all");
+  }
+
+  const taskCalendar = await TaskCalendar.findOne({ user: userId });
+
+  if (!taskCalendar) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "Task calendar not found for user");
+  }
+
+  let startDate: Date | null = null;
+  let endDate: Date | null = null;
+
+  if (getBy === "weekly") {
+    startDate = dayjs().startOf("week").toDate();
+    endDate = dayjs().endOf("week").toDate();
+  } else if (getBy === "monthly") {
+    startDate = dayjs().startOf("month").toDate();
+    endDate = dayjs().endOf("month").toDate();
+  } else if (getBy === "yearly") {
+    startDate = dayjs().startOf("year").toDate();
+    endDate = dayjs().endOf("year").toDate();
+  }
+
+  // Filter pure Date array (selectedWorkoutDates, targetedWorkoutDates)
+  const filterDateArray = (dates: Date[]) => {
+    if (getBy === "all") return dates;
+    return dates.filter((d) => d >= startDate! && d <= endDate!);
   };
 
-  const taskCalenderQuery = new QueryBuilder(
-    TaskCalendar.find(findQuery),
-    query
-  )
-    .fields()
-    .filter()
-    .sort()
-    .paginate();
+  // Filter objects containing { date: Date } (workoutPictures)
+  const filterPictureArray = (items: { date: Date; image: string }[]) => {
+    if (getBy === "all") return items;
+    return items.filter((item) => {
+      const d = new Date(item.date);
+      return d >= startDate! && d <= endDate!;
+    });
+  };
 
-  const data = await taskCalenderQuery.modelQuery.lean();
-  const pagination = await taskCalenderQuery.getPaginationInfo();
+  // Apply filters
+  const targeted = filterDateArray(taskCalendar.targetedWorkoutDates || []);
+  const completed = filterDateArray(taskCalendar.selectedWorkoutDates || []);
+  const pictures = filterPictureArray(taskCalendar.workoutPictures || []);
+
 
   return {
-    data,
-    pagination,
+    getBy,
+    targeted: targeted.length,
+    completed: completed.length,
+    pictures: pictures.length,
+    workoutPictures: pictures,
   };
 };
 
+
+
 export const TaskCalenderService = {
   createTaskCalendar,
-  updateTaskCalender,
-  deleteTaskCalender,
-  findById,
   getAllTaskCalenders,
-  getTaskCalendersByYearAndMonth,
+  uploadWorkoutPicture,
+  getWorkoutProgress
+
 };
 

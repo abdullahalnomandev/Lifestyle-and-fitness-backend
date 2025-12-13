@@ -3,11 +3,12 @@ import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import { TaskCalenderService } from './TaskCalender.service';
+import { getMultipleFilesPath } from '../../../shared/getFilePath';
 
 const createTaskCalender = catchAsync(async (req: Request, res: Response) => {
   const data = req.body;
 
-  const result = await TaskCalenderService.createTaskCalendar(data,req?.user?.id as string);
+  const result = await TaskCalenderService.createTaskCalendar(data, req?.user?.id as string);
 
   sendResponse(res, {
     success: true,
@@ -19,7 +20,7 @@ const createTaskCalender = catchAsync(async (req: Request, res: Response) => {
 
 const getAllTaskCalenders = catchAsync(async (req: Request, res: Response) => {
   const query = req.query as Record<string, any>;
-  const { data, pagination } = await TaskCalenderService.getAllTaskCalenders(
+  const { data } = await TaskCalenderService.getAllTaskCalenders(
     query
   );
 
@@ -27,78 +28,48 @@ const getAllTaskCalenders = catchAsync(async (req: Request, res: Response) => {
     success: true,
     statusCode: StatusCodes.OK,
     message: 'Task calendars retrieved successfully',
-    pagination,
     data,
   });
 });
 
-const getSingleTaskCalender = catchAsync(
-  async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const result = await TaskCalenderService.findById(id);
 
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'Task calendar retrieved successfully',
-      data: result,
-    });
-  }
-);
+const uploadWorkoutPicture = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user;
+  let image = getMultipleFilesPath(req.files, 'image');
 
-const updateTaskCalender = catchAsync(async (req: Request, res: Response) => {
-  const payload = req.body;
 
-  const result = await TaskCalenderService.updateTaskCalender(
-    req.params.id,
-    payload
-  );
+  const result = await TaskCalenderService.uploadWorkoutPicture(user, image as any);
 
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'Task calendar updated successfully',
+    message: 'Workout picture uploaded successfully',
     data: result,
-  });
+  })
 });
 
-const deleteTaskCalender = catchAsync(async (req: Request, res: Response) => {
-  const result = await TaskCalenderService.deleteTaskCalender(req.params.id);
+
+const getWorkoutProgress = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+
+  const result = await TaskCalenderService.getWorkoutProgress(userId as string,req.query);
 
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'Task calendar deleted successfully',
+    message: 'Workout progress retrieved successfully',
     data: result,
   });
 });
 
-const getTaskCalendersByYearAndMonth = catchAsync(
-  async (req: Request, res: Response) => {
-    const { year, month } = req.params;
-    const query = req.query as Record<string, any>;
-    const result = await TaskCalenderService.getTaskCalendersByYearAndMonth(
-      Number(year),
-      Number(month),
-      query
-    );
 
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'Task calendars retrieved successfully',
-      pagination: result.pagination,
-      data: result.data,
-    });
-  }
-);
+
+
 
 export const TaskCalenderController = {
   createTaskCalender,
   getAllTaskCalenders,
-  getSingleTaskCalender,
-  updateTaskCalender,
-  deleteTaskCalender,
-  getTaskCalendersByYearAndMonth,
+  uploadWorkoutPicture,
+  getWorkoutProgress
 };
 

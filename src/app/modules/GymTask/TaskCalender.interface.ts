@@ -8,7 +8,9 @@ export interface ITaskCalendar {
   selectedStartDate: Date;   // "2025-12-08"
   selectedEndDate: Date;     // "2025-12-12"
   isCheckedToday: boolean;
+  targetedWorkoutDates?: Date[]; // optional if needed
   selectedWorkoutDates: Date[]; // optional if needed
+  workoutPictures:{ date: Date; image: string }[];
   createdAt?: Date;
   updatedAt?: Date;
 }
