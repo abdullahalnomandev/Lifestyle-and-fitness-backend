@@ -74,11 +74,23 @@ const updateOrderStatus = catchAsync(async (req: Request, res: Response) => {
 });
 
 
+const orderHistory = catchAsync(async (req: Request, res: Response) => {
+  const result = await StoreService.orderHistory(req.user?.id as string);
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Order history fetched successfully',
+    data: result.data,
+  });
+});
+
+
 
 export const StoreController = {
   getProductCollections,
   getProductsByCollectionHandle,
   getProductById,
   createCheckout,
-  updateOrderStatus
+  updateOrderStatus,
+  orderHistory
 };

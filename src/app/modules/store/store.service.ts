@@ -9,6 +9,8 @@ import {
   getProductVariantDetails,
   makeOrderPaid,
   orderDelete,
+  getCustomerId,
+  getCustomerOrders,
 } from './shopify-gql-api/gql-api';
 import { User } from '../user/user.model';
 import { CheckoutRequest, LineItem } from './store.interface';
@@ -287,10 +289,115 @@ const updateOrderStatus = async (
   }
 };
 
+
+const orderHistory = async (userId: string) => {
+  // Start response timer
+  const startTime = Date.now();
+
+  // Step 1: Respond immediately with "processing" after checking user existence
+  const existUser = await User.findById(userId, 'email').lean();
+
+  if (!existUser || !existUser.email) {
+    return { 
+      data: [],
+      message: "No user or user email found" 
+    };
+  }
+
+  // Optionally: In a real-time or streaming application, you would trigger an event/stream update here
+  // E.g., send a WebSocket message or HTTP SSE "processing" status response.
+  // (Here, just include in final response for demonstration)
+  const firstResponseTime = Date.now() - startTime;
+
+  // Step 2: Fetch Shopify customers by email
+  const customerData = await getCustomerId(existUser.email);
+  const customerEdges = customerData?.customers?.edges ?? [];
+
+  if (!Array.isArray(customerEdges) || customerEdges.length === 0) {
+    return {
+      data: [],
+      query: customerData,
+      message: "No Shopify customer found for this user",
+      firstResponseTime
+    };
+  }
+
+  const customers: Array<{ id: string, node: any }> = customerEdges
+    .map(edge => {
+      const shopifyGid = edge?.node?.id ?? null;
+      return shopifyGid ? { id: shopifyGid.split('/').pop(), node: edge.node } : null;
+    })
+    .filter((entry): entry is { id: string, node: any } => Boolean(entry && entry.id));
+
+  if (customers.length === 0) {
+    return {
+      data: [],
+      query: customerData,
+      message: "No Shopify customer found for this user",
+      firstResponseTime
+    };
+  }
+
+  // Step 3: Fetch Shopify orders in parallel
+  const ordersResults = await Promise.all(
+    customers.map((shopifyCustomer) => getCustomerOrders(shopifyCustomer.id))
+  );
+
+  // Step 4: Flatten all customer orders and add customer node info
+  const allItems: any[] = [];
+  for (let customerIdx = 0; customerIdx < customers.length; customerIdx++) {
+    const ordersResponse = ordersResults[customerIdx];
+    const customerNode = customers[customerIdx].node;
+    const edges = ordersResponse?.orders?.edges ?? [];
+    if (Array.isArray(edges) && edges.length > 0) {
+      const items = edges.map((orderEdge: any) => {
+        const node = orderEdge.node;
+        return {
+          orderId: node.id,
+          customId: node.id ? node.id.split('/').pop() : null,
+          price: node.totalPriceSet?.shopMoney?.amount ?? null,
+          currency: node.totalPriceSet?.shopMoney?.currencyCode ?? null,
+          totalItems: node?.lineItems?.nodes.length ?? 0,
+          // paymentStatus: node.displayFinancialStatus,
+          // fulfillStatus: node.displayFulfillmentStatus,
+          // poNumber: node.poNumber,
+          date: node.createdAt,
+          // customer: {
+          //   id: customerNode?.id,
+          //   ...customerNode
+          // }
+        };
+      });
+      allItems.push(...items);
+    }
+  }
+
+  if (allItems.length === 0) {
+    return {
+      data: [],
+      query: customerData,
+      message: "No orders found for this customer",
+      firstResponseTime
+    };
+  }
+
+  // Return full data and measured first response time
+  return {
+    data: allItems,
+    query: customerData,
+    total: allItems.length,
+    message: "Order history fetched successfully",
+    firstResponseTime
+  };
+};
+
+
+
 export const StoreService = {
   getAllCollection,
   getProductsByCollectionHnadle,
   getProductById,
   createCheckout,
   updateOrderStatus,
+  orderHistory
 };

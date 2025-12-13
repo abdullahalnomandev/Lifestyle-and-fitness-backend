@@ -1,5 +1,3 @@
-import { IBookingClass } from '../app/modules/bookingClass/bookingClass.interface';
-import { IClass } from '../app/modules/class/class.interface';
 import config from '../config';
 import { ICreateAccount, IResetPassword } from '../types/emailTamplate';
 

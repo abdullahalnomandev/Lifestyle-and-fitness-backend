@@ -204,3 +204,103 @@ export const DELETE_ORDER = `mutation OrderDelete($orderId: ID!) {
   }
 }
 `
+
+export const GET_CUSTOMER_ID = `query getCustomerByEmail($email: String!) {
+  customers(first: 1, query: $email) {
+    edges {
+      node {
+        id
+      }
+    }
+  }
+}
+`;
+
+export const GET_CUSTOMER_ORDERS = `query getOrdersByCustomer($query: String!) {
+  orders(first: 50, query: $query) {
+    edges {
+      node {
+        id
+        name
+        poNumber
+        createdAt
+
+        displayFinancialStatus
+        displayFulfillmentStatus
+        closedAt
+
+        totalPriceSet {
+          shopMoney {
+            amount
+            currencyCode
+          }
+        }
+
+        lineItems(first: 5) {
+          nodes {
+            id
+            title
+            quantity
+            product {
+              id
+              images(first: 1) {
+                edges {
+                  node {
+                    originalSrc
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        tags
+        note
+      }
+    }
+
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}`;
+
+export const GET_ORDER_DETAILS = `query getOrder($id: ID!) {
+  order(id: $id) {
+    id
+    name
+    createdAt
+    totalPriceSet {
+      shopMoney {
+        amount
+        currencyCode
+      }
+    }
+    note
+    tags
+    lineItems(first: 12) {
+      nodes {
+        id
+        title
+        quantity
+        variant {
+          id
+          title
+          product{
+            id
+            handle
+           images(first: 1) {
+            edges {
+              node {
+                id
+                originalSrc
+              }
+            }
+          }
+          }
+        }
+      }
+    }
+  }
+}`;
