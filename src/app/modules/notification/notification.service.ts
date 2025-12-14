@@ -5,7 +5,7 @@ import { Notification } from './notification.mode';
 
 const getMyNotifications = async (userId: string, query: Record<string, any>) => {
   const notificationQuery = new QueryBuilder(
-    Notification.find({ receiver: userId },'-deleteReferenceId').populate('sender', 'profile.username profile.image').lean(),
+    Notification.find({ receiver: userId },'-deleteReferenceId').populate('sender', 'name image').lean(),
     query
   )
     .paginate()

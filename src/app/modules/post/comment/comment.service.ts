@@ -26,6 +26,21 @@ const createComment = async (payload: IComment,fcmToken:string) => {
   }
 
   const comment = await Comment.create(payload);
+
+  // Send notification to post creator if the commenter is not the post owner
+  if (post?.creator && post.creator.toString() !== payload.creator.toString()) {
+     Notification.create({
+      receiver: post.creator,
+      sender: payload.creator,
+      title: 'New comment on your post',
+      message: 'You have a new comment on your post.',
+      refId: post._id,
+      deleteReferenceId: comment._id,
+      path: `/user/post/${post._id}`
+    });
+  }
+
+
   return comment;
 };
 
@@ -123,8 +138,8 @@ const getALlCommentsByPost = async (
 
 
 const createCommentReply = async (payload: ICommentReply) => {
-  const post = await Comment.findById(payload.comment);
-  if (!post) {
+  const postComment = await Comment.findById(payload.comment).populate('creator', '_id');
+  if (!postComment) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Comment id is not valid');
   }
   if (!payload.creator) {
@@ -137,9 +152,26 @@ const createCommentReply = async (payload: ICommentReply) => {
     );
   }
 
-  const comment = await CommentReply.create(payload);
-  return comment;
+  const commentReply = await CommentReply.create(payload);
+
+  // Send notification if replying to someone else's comment
+  const commentOwnerId = postComment.creator?._id?.toString();
+  const replyCreatorId = payload.creator.toString();
+  if (commentOwnerId && commentOwnerId !== replyCreatorId) {
+    Notification.create({
+      receiver: commentOwnerId,
+      sender: replyCreatorId,
+      title: 'New reply to your comment',
+      message: 'Someone replied to your comment.',
+      refId: payload.comment,
+      deleteReferenceId: commentReply._id,
+      path: `/user/comment/reply/${payload.comment}`,
+    });
+  }
+
+  return commentReply;
 };
+
 
 
 
@@ -169,12 +201,16 @@ const getAllCommentReply = async (commentId: string, userId: string, query: Reco
 
 
 
-const deleteCommentReply = async (id: string,userId:string) => {
-  const deletedComment = await CommentReply.findOneAndDelete({_id:id,creator:userId});
+const deleteCommentReply = async (id: string, userId: string) => {
+  // Find and delete the comment reply only if the user is the creator
+  const deletedComment = await CommentReply.findOneAndDelete({ _id: id, creator: userId });
   if (!deletedComment) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Comment not found');
   }
-  
+
+  // Also delete any notification associated with this reply (using deleteReferenceId)
+  await Notification.deleteOne({ deleteReferenceId: deletedComment._id }).exec();
+
   return deletedComment;
 };
 
@@ -188,7 +224,9 @@ const toggleCommentLike = async (id: string, userId: string) => {
   const existingLike = await CommentLike.findOne({ comment: id, user: userId });
 
   if (existingLike) {
-    await CommentLike.findByIdAndDelete(existingLike._id);
+    // Delete any notification linked by deleteReferenceId to this like
+    await Notification.deleteOne({ deleteReferenceId: existingLike._id }).exec();
+     CommentLike.findByIdAndDelete(existingLike._id);
     return {
       message: 'Comment unliked successfully',
       data: null, // no like now
@@ -197,12 +235,24 @@ const toggleCommentLike = async (id: string, userId: string) => {
 
   const newLike = await CommentLike.create({ comment: id, user: userId });
 
+  // Create notification to comment owner, but do not notify self-likes
+  if (comment.creator.toString() !== userId.toString()) {
+     Notification.create({
+      receiver: comment.creator,
+      sender: userId,
+      title: 'Your comment was liked',
+      message: 'Someone liked your comment.',
+      refId: comment._id,
+      deleteReferenceId: newLike._id,
+      path: `/user/comment/like/${comment._id}`,
+    });
+  }
+
   return {
     message: 'Comment liked successfully',
     data: newLike, // return actual like
   };
 };
-
 
 
 

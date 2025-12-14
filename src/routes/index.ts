@@ -15,6 +15,7 @@ import { TaskCalenderRoutes } from '../app/modules/GymTask/TaskCalender.route';
 import { UserRoutes } from '../app/modules/user/user.route';
 import { UserTokenRoutes } from '../app/modules/userToken';
 import { StoreRoutes } from '../app/modules/store/store.route';
+import { NotificationRoutes } from '../app/modules/notification/notification.route';
 
 const router = express.Router();
 
@@ -82,6 +83,10 @@ const apiRoutes = [
   {
     path: '/store',
     route: StoreRoutes,
+  },
+  {
+    path: '/notification',
+    route: NotificationRoutes,
   }
 ];
 

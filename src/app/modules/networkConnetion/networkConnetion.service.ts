@@ -8,6 +8,7 @@ import {
   networkUserSearchableField,
 } from './networkConnetion.constant';
 import { User } from '../user/user.model';
+import { Notification } from '../notification/notification.mode';
 
 const sendRequestToDB = async (payload: INetworkConnection) => {
   if (!payload.requestFrom || !payload.requestTo) {
@@ -49,10 +50,37 @@ const sendRequestToDB = async (payload: INetworkConnection) => {
     existing.requestFrom = payload.requestFrom;
     existing.requestTo = payload.requestTo;
     existing.status = NETWORK_CONNECTION_STATUS.PENDING;
-    return existing.save();
+    const saved = await existing.save();
+
+    // Create notification when a connection request is (re)sent
+    Notification.create({
+      receiver: payload.requestTo,
+      sender: payload.requestFrom,
+      title: 'New connection request',
+      message: 'You have received a connection request.',
+      refId: saved._id,
+      deleteReferenceId: saved._id,
+      path: `/user/network/request/${saved._id}`,
+    });
+
+    return saved;
   }
 
-  return NetworkConnection.create(payload);
+  // Create new connection request
+  const connection = await NetworkConnection.create(payload);
+
+  // Create notification when a new connection request is sent
+   Notification.create({
+    receiver: payload.requestTo,
+    sender: payload.requestFrom,
+    title: 'New connection request',
+    message: 'You have received a connection request.',
+    refId: connection._id,
+    deleteReferenceId: connection._id,
+    path: `/user/network/request/${connection._id}`,
+  });
+
+  return connection;
 };
 
 const updateStatusInDB = async (
@@ -75,6 +103,18 @@ const updateStatusInDB = async (
   }
 
   connection.status = status;
+  if(connection.status === NETWORK_CONNECTION_STATUS.ACCEPTED){
+    // Create a notification to let the sender know their request was accepted
+    Notification.create({
+      receiver: connection.requestFrom,
+      sender: connection.requestTo,
+      title: 'Connection request accepted',
+      message: 'Your connection request has been accepted.',
+      refId: connection._id,
+      deleteReferenceId: connection._id,
+      path: `/user/network/request/${connection._id}`,
+    });
+  }
   await connection.save();
 
   return connection;
@@ -224,6 +264,8 @@ const cancel = async (payload: INetworkConnection) => {
     return { message: 'No pending connection request found to cancel.' };
   }
 
+  // Remove notification associated with this network request (by deleteReferenceId)
+  Notification.deleteOne({ deleteReferenceId: existing._id }).exec();
   await NetworkConnection.findByIdAndDelete(existing._id);
 
   return { message: 'Connection request cancelled .' };

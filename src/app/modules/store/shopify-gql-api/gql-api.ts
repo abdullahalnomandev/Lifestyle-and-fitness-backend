@@ -49,36 +49,17 @@ const storefrontClient = createShopifyClient('storefront');
 const adminClient = createShopifyClient('admin');
 
 // Storefront Queries
-export const getAllProductsBySlug = async (handle: string) =>
-  runShopifyQuery(storefrontClient, GET_ALL_COLLECTION, { handle });
-export const getAllProductsCollection = async (limit: number) =>
-  runShopifyQuery(storefrontClient, GET_ALL_PRODUCT_COLLECTION, {
-    first: limit,
-  });
-export const getAllProducts = async () =>
-  runShopifyQuery(storefrontClient, GET_ALL_PRODUCTS);
-export const getProductByHandle = async (handle: string) =>
-  runShopifyQuery(storefrontClient, GET_PRODUCT_DETILS_BY_HANDLE, { handle });
+export const getAllProductsBySlug = async (handle: string) => runShopifyQuery(storefrontClient, GET_ALL_COLLECTION, { handle });
+export const getAllProductsCollection = async (limit: number) => runShopifyQuery(storefrontClient, GET_ALL_PRODUCT_COLLECTION, { first: limit,});
+export const getAllProducts = async () => runShopifyQuery(storefrontClient, GET_ALL_PRODUCTS);
+export const getProductByHandle = async (handle: string) => runShopifyQuery(storefrontClient, GET_PRODUCT_DETILS_BY_HANDLE, { handle });
 
 //ADMIN QUERIES
-export const createProductCheckout = async (order: any) =>
-  runShopifyQuery(adminClient, CREATE_ORDER, order);
-export const getProductVariantDetails = async (id: string) =>
-  runShopifyQuery(adminClient, GET_VARIANT_DETAILS, { id });
-export const makeOrderPaid = async (id: string) =>
-  runShopifyQuery(adminClient, MAKE_ORDER_PAID, { input: { id } });
-export const orderDelete = async (orderId: string) =>
-  runShopifyQuery(adminClient, DELETE_ORDER, { orderId });
-export const getCustomerId = async (email: string) =>
-  runShopifyQuery(adminClient, GET_CUSTOMER_ID, { email });
-export const getCustomerOrders = async (customerId: string) =>
-  runShopifyQuery(adminClient, GET_CUSTOMER_ORDERS, {
-    query: `customer_id:${customerId} financial_status:PAID`,
-  });
-export const getOrderDetails = async (id: string) => {
-  const shopifyId = `gid://shopify/Order/${id}`;
-  return runShopifyQuery(adminClient, GET_ORDER_DETAILS, { id: shopifyId });
-};
+export const createProductCheckout = async (order: any) => runShopifyQuery(adminClient, CREATE_ORDER, order);
+export const getProductVariantDetails = async (id: string) => runShopifyQuery(adminClient, GET_VARIANT_DETAILS, { id });
+export const makeOrderPaid = async (id: string) => runShopifyQuery(adminClient, MAKE_ORDER_PAID, { input: { id } });
+export const orderDelete = async (orderId: string) => runShopifyQuery(adminClient, DELETE_ORDER, {orderId});
+export const getCustomerId = async (email: string) => runShopifyQuery(adminClient, GET_CUSTOMER_ID, { email });
+export const getCustomerOrders = async (customerId: string) => runShopifyQuery(adminClient, GET_CUSTOMER_ORDERS, { query: `customer_id:${customerId} financial_status:paid`});
+export const getOrderDetails = async (id: string) =>  runShopifyQuery(adminClient, GET_ORDER_DETAILS, { query: `name:${id}`});
 
-// Admin Queries
-// export const createCheckout = async (lines: { merchandiseId: string; quantity: number }[]) => runShopifyQuery(storefrontClient, CREATE_CEHECKOUT, lines);

@@ -118,6 +118,8 @@ const watchSory = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+
+
 export const StoryController = {
   createStory,
   getAllStories,

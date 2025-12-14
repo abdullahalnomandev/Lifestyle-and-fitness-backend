@@ -76,7 +76,7 @@ const loginUserFromDB = async (payload: ILoginData) => {
   //check verified and status
   if (!userInfo.verified) {
     throw new ApiError(
-      StatusCodes.BAD_REQUEST,
+      StatusCodes.FORBIDDEN,
       'Please verify your account, then try to login again'
     );
   }
@@ -96,7 +96,11 @@ const loginUserFromDB = async (payload: ILoginData) => {
     config.jwt.jwt_expire_in as string
   );
 
-  return { data: { accessToken: createToken } };
+  // Remove password from userInfo before returning
+  if (userInfo && userInfo.password) {
+    userInfo.password = undefined as any;
+  }
+  return { data: { accessToken: createToken, userInfo } };
 };
 
 //forget password
@@ -185,7 +189,11 @@ const verifyEmailToDB = async (otp: string) => {
     config.jwt.jwt_expire_in as string
   );
 
-  return { message: 'Account verified successfully', token: createToken };
+  // Remove password from userInfo before returning
+  if (registeredUser && registeredUser.password) {
+    registeredUser.password = undefined as any;
+  }
+  return { message: 'Account verified successfully', token: createToken,userInfo:registeredUser };
 };
 
 //forget password

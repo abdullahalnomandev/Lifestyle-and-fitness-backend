@@ -1,7 +1,7 @@
 import { randomInt } from 'crypto';
 
 const generateOTP = () => {
-  return randomInt(10000, 100000);
+  return randomInt(100000, 1000000);
 };
 
 export default generateOTP;

@@ -19,7 +19,8 @@ router.post('/product/create-checkout',auth(USER_ROLES.ADMIN,USER_ROLES.USER,USE
 
 router.get('/webhook/:id',StoreController.updateOrderStatus);
 
-router.get('/order-history',auth(USER_ROLES.ADMIN,USER_ROLES.USER,USER_ROLES.SUPER_ADMIN),StoreController.orderHistory)
+router.get('/order-history',auth(USER_ROLES.ADMIN,USER_ROLES.USER,USER_ROLES.SUPER_ADMIN),StoreController.orderHistory);
+router.get('/order-history/:orderId',auth(USER_ROLES.ADMIN,USER_ROLES.USER,USER_ROLES.SUPER_ADMIN),StoreController.orderDetails);
 
 
 

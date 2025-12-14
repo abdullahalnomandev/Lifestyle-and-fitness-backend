@@ -131,6 +131,7 @@ export const CREATE_ORDER = `mutation orderCreate(
     }
     order {
       id
+      name
       totalTaxSet {
         shopMoney {
           amount
@@ -217,7 +218,12 @@ export const GET_CUSTOMER_ID = `query getCustomerByEmail($email: String!) {
 `;
 
 export const GET_CUSTOMER_ORDERS = `query getOrdersByCustomer($query: String!) {
-  orders(first: 50, query: $query) {
+  orders(
+    first: 200
+    query: $query
+    sortKey: CREATED_AT
+    reverse: true
+  ) {
     edges {
       node {
         id
@@ -264,40 +270,47 @@ export const GET_CUSTOMER_ORDERS = `query getOrdersByCustomer($query: String!) {
       endCursor
     }
   }
-}`;
+}
+`;
 
-export const GET_ORDER_DETAILS = `query getOrder($id: ID!) {
-  order(id: $id) {
-    id
-    name
-    createdAt
-    totalPriceSet {
-      shopMoney {
-        amount
-        currencyCode
-      }
-    }
-    note
-    tags
-    lineItems(first: 12) {
-      nodes {
+export const GET_ORDER_DETAILS = `query getOrderByName($query: String!) {
+  orders(first: 1, query: $query) {
+    edges {
+      node {
         id
-        title
-        quantity
-        variant {
-          id
-          title
-          product{
+        name
+        createdAt
+
+        totalPriceSet {
+          shopMoney {
+            amount
+            currencyCode
+          }
+        }
+
+        lineItems(first: 12) {
+          nodes {
             id
-            handle
-           images(first: 1) {
-            edges {
-              node {
+            title
+            quantity
+
+            variant {
+              id
+              title
+              price
+
+              product {
                 id
-                originalSrc
+                handle
+                images(first: 1) {
+                  edges {
+                    node {
+                      originalSrc
+                    }
+                  }
+                }
               }
             }
-          }
           }
         }
       }

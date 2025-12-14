@@ -11,6 +11,7 @@ import {
   orderDelete,
   getCustomerId,
   getCustomerOrders,
+  getOrderDetails,
 } from './shopify-gql-api/gql-api';
 import { User } from '../user/user.model';
 import { CheckoutRequest, LineItem } from './store.interface';
@@ -18,6 +19,8 @@ import stripe from '../../../config/stripe';
 import config from '../../../config';
 import { Response } from 'express';
 import { UserToken } from '../userToken';
+import { Notification } from '../notification/notification.mode';
+import { USER_ROLES } from '../../../enums/user';
 
 const getAllCollection = async (userId: string): Promise<any> => {
   const productCollections = await getAllProductsCollection(20);
@@ -160,7 +163,8 @@ const createCheckout = async (
     const variantPrice = Number(variantDetails?.productVariant?.price || 0);
 
     // Simple tax logic: add a tax amount directly to the lineSubtotal (e.g., let's assume a fixed rate 6%)
-    const taxRate = 0.06; // Example: 6%
+    const taxRate = 0.0; // Example: 6%
+    // const taxRate = 0.06; // Example: 6%
     const lineSubtotal = variantPrice * quantity;
     const taxAmount = lineSubtotal * taxRate;
 
@@ -241,12 +245,12 @@ const createCheckout = async (
       productTitles: displayTitles.join(', '),
     },
 
-    success_url: `${rootUrl}/api/v1/store/webhook/${encodeURIComponent(
-      product?.orderCreate?.order?.id
-    )}?status=success&userId=${userId}`,
-    cancel_url: `${rootUrl}/api/v1/store/webhook/${encodeURIComponent(
-      product?.orderCreate?.order?.id
-    )}?status=cancel&userId=${userId}`,
+    success_url: `${rootUrl}/api/v1/store/webhook/${String(
+      product?.orderCreate?.order?.name
+    ).replace(/^#/, '')}?status=success&userId=${userId}`,
+    cancel_url: `${rootUrl}/api/v1/store/webhook/${String(
+      product?.orderCreate?.order?.name
+    ).replace(/^#/, '')}?status=cancel&userId=${userId}`,
   });
 
   return {
@@ -262,33 +266,58 @@ const updateOrderStatus = async (
   status: 'success' | 'cancel',
   userId: string
 ) => {
+  // Fetch the Shopify order details to get the GID
+  const result = await getOrderDetails(orderId);
+  const orderGid = result?.orders?.edges?.[0]?.node?.id;
+
+
   if (status === 'success') {
-    await makeOrderPaid(orderId);
+    // Create notification for user
+    Notification.create({
+      receiver: userId,
+      title: 'Purchase Success',
+      message:
+        'Thank you for your purchase! Your order is confirmed and you have earned 1 token.',
+      refId: userId,
+      path: `/store/order-history/${orderId}`,
+    });
 
-    const userToken = await UserToken.findOne({ user: userId });
-    if (!userToken) {
-      await UserToken.create({ user: userId, numberOfToken: 1 });
-    } else {
-      await UserToken.updateOne(
-        { user: userId },
-        { $inc: { numberOfToken: 1 } }
-      );
-    }
+    // Optionally notify admins as well (use their own receiver ids, no duplicate for user)
+    const adminUsers = await User.find({ role: USER_ROLES.ADMIN });
+    adminUsers.forEach(admin => {
+      Notification.create({
+        receiver: admin._id,
+        title: 'New Order Placed',
+        message: `A user has placed a new order (Order ID: #${orderId}).`,
+        refId: admin._id,
+        path: `/store/order-history/${orderId}`,
+      });
+    });
 
-    res.redirect(
+    await makeOrderPaid(orderGid);
+
+    await UserToken.updateOne(
+      { user: userId },
+      { $inc: { numberOfToken: 1 } },
+      { upsert: true }
+    );
+
+    return res.redirect(
       `${config.front_end_app_url}/success?orderId=${orderId}&userId=${userId}`
     );
-  } else {
-    if (status === 'cancel') {
-      await orderDelete(orderId);
+  }
 
-      res.redirect(
-        `${config.front_end_app_url}/cancel?orderId=${orderId}&userId=${userId}`
-      );
+  if (status === 'cancel') {
+
+    if (orderGid) {
+      await orderDelete(orderGid);
     }
+
+    return res.redirect(
+      `${config.front_end_app_url}/cancel?orderId=${orderId}&userId=${userId}`
+    );
   }
 };
-
 
 const orderHistory = async (userId: string) => {
   // Start response timer
@@ -298,9 +327,9 @@ const orderHistory = async (userId: string) => {
   const existUser = await User.findById(userId, 'email').lean();
 
   if (!existUser || !existUser.email) {
-    return { 
+    return {
       data: [],
-      message: "No user or user email found" 
+      message: 'No user or user email found',
     };
   }
 
@@ -317,30 +346,34 @@ const orderHistory = async (userId: string) => {
     return {
       data: [],
       query: customerData,
-      message: "No Shopify customer found for this user",
-      firstResponseTime
+      message: 'No Shopify customer found for this user',
+      firstResponseTime,
     };
   }
 
-  const customers: Array<{ id: string, node: any }> = customerEdges
+  const customers: Array<{ id: string; node: any }> = customerEdges
     .map(edge => {
       const shopifyGid = edge?.node?.id ?? null;
-      return shopifyGid ? { id: shopifyGid.split('/').pop(), node: edge.node } : null;
+      return shopifyGid
+        ? { id: shopifyGid.split('/').pop(), node: edge.node }
+        : null;
     })
-    .filter((entry): entry is { id: string, node: any } => Boolean(entry && entry.id));
+    .filter((entry): entry is { id: string; node: any } =>
+      Boolean(entry && entry.id)
+    );
 
   if (customers.length === 0) {
     return {
       data: [],
       query: customerData,
-      message: "No Shopify customer found for this user",
-      firstResponseTime
+      message: 'No Shopify customer found for this user',
+      firstResponseTime,
     };
   }
 
   // Step 3: Fetch Shopify orders in parallel
   const ordersResults = await Promise.all(
-    customers.map((shopifyCustomer) => getCustomerOrders(shopifyCustomer.id))
+    customers.map(shopifyCustomer => getCustomerOrders(shopifyCustomer.id))
   );
 
   // Step 4: Flatten all customer orders and add customer node info
@@ -353,8 +386,8 @@ const orderHistory = async (userId: string) => {
       const items = edges.map((orderEdge: any) => {
         const node = orderEdge.node;
         return {
-          orderId: node.id,
-          customId: node.id ? node.id.split('/').pop() : null,
+          id: node.id,
+          name: node.name,
           price: node.totalPriceSet?.shopMoney?.amount ?? null,
           currency: node.totalPriceSet?.shopMoney?.currencyCode ?? null,
           totalItems: node?.lineItems?.nodes.length ?? 0,
@@ -376,8 +409,8 @@ const orderHistory = async (userId: string) => {
     return {
       data: [],
       query: customerData,
-      message: "No orders found for this customer",
-      firstResponseTime
+      message: 'No orders found for this customer',
+      firstResponseTime,
     };
   }
 
@@ -386,12 +419,53 @@ const orderHistory = async (userId: string) => {
     data: allItems,
     query: customerData,
     total: allItems.length,
-    message: "Order history fetched successfully",
-    firstResponseTime
+    message: 'Order history fetched successfully',
+    firstResponseTime,
   };
 };
 
+const orderDetails = async (orderId: string, userId: string) => {
+  // Get order details from Shopify
+  const result = await getOrderDetails(orderId);
 
+  // result.orders.edges[0].node according to returned example structure
+  const orderNode = result?.orders?.edges?.[0]?.node;
+  if (!orderNode) {
+    return {
+      data: null,
+      message: 'Order not found',
+    };
+  }
+
+  // Flatten line items
+  const lineItems = (orderNode.lineItems?.nodes ?? []).map((item: any) => ({
+    id: item.id,
+    title: item.title,
+    quantity: item.quantity,
+    variantId: item.variant?.id ?? null,
+    variantTitle: item.variant?.title ?? null,
+    variantPrice: item.variant?.price ?? null,
+    productId: item.variant?.product?.id ?? null,
+    productHandle: item.variant?.product?.handle ?? null,
+    productImage:
+      item.variant?.product?.images?.edges?.[0]?.node?.originalSrc ?? null,
+  }));
+
+  // Flatten order details
+  const flatOrder = {
+    id: orderNode.id,
+    name: orderNode.name,
+    createdAt: orderNode.createdAt,
+    amount: orderNode?.totalPriceSet?.shopMoney?.amount ?? null,
+    currency: orderNode?.totalPriceSet?.shopMoney?.currencyCode ?? null,
+    lineItems,
+  };
+
+  return {
+    data: flatOrder,
+    message: 'Order details fetched successfully',
+  };
+};
 
 export const StoreService = {
   getAllCollection,
@@ -399,5 +473,6 @@ export const StoreService = {
   getProductById,
   createCheckout,
   updateOrderStatus,
-  orderHistory
+  orderHistory,
+  orderDetails,
 };

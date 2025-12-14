@@ -4,7 +4,7 @@ import { IUser } from "../user/user.interface";
 export interface INotification {
   _id:Types.ObjectId;
   receiver: Schema.Types.ObjectId | IUser;
-  sender: Schema.Types.ObjectId | IUser | null;
+  sender?: Schema.Types.ObjectId | IUser | null;
   title: string;
   message: string;
   refId: Schema.Types.ObjectId;

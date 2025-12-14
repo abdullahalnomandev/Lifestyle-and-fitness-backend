@@ -73,7 +73,7 @@ const createUserToDB = async (
   //LOCAL
   else {
     if (payload.auth_provider === 'local' && payload.password) {
-      isValid = true;
+       isValid = true;
 
       const otp = generateOTP();
       authorization = {
