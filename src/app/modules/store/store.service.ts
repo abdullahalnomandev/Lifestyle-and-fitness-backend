@@ -12,6 +12,8 @@ import {
   getCustomerId,
   getCustomerOrders,
   getOrderDetails,
+  getAllAdminOrder,
+  getTotalOrder,
 } from './shopify-gql-api/gql-api';
 import { User } from '../user/user.model';
 import { CheckoutRequest, LineItem } from './store.interface';
@@ -270,7 +272,6 @@ const updateOrderStatus = async (
   const result = await getOrderDetails(orderId);
   const orderGid = result?.orders?.edges?.[0]?.node?.id;
 
-
   if (status === 'success') {
     // Create notification for user
     Notification.create({
@@ -308,7 +309,6 @@ const updateOrderStatus = async (
   }
 
   if (status === 'cancel') {
-
     if (orderGid) {
       await orderDelete(orderGid);
     }
@@ -392,7 +392,7 @@ const orderHistory = async (userId: string) => {
           currency: node.totalPriceSet?.shopMoney?.currencyCode ?? null,
           totalItems: node?.lineItems?.nodes.length ?? 0,
           // paymentStatus: node.displayFinancialStatus,
-          // fulfillStatus: node.displayFulfillmentStatus,
+          fulfillStatus: node.displayFulfillmentStatus,
           // poNumber: node.poNumber,
           date: node.createdAt,
           // customer: {
@@ -467,6 +467,56 @@ const orderDetails = async (orderId: string, userId: string) => {
   };
 };
 
+const getAllOrders = async (query?: { [key: string]: any }) => {
+
+  const page = Number(query?.page) || 1;
+  const limit = Number(query?.limit) || 10;
+
+  // Fetch all orders (or enough to cover the requested page)
+  const $first = page * limit; // fetch enough orders to cover the requested page
+  const ordersResult = await getAllAdminOrder($first);
+  const edges = ordersResult?.orders?.edges ?? [];
+
+  // Flatten orders data
+  const allItems: any[] = edges.map((orderEdge: any) => {
+    const node = orderEdge.node;
+    return {
+      id: node.id,
+      name: node.name,
+      price: node.totalPriceSet?.shopMoney?.amount ?? null,
+      currency: node.totalPriceSet?.shopMoney?.currencyCode ?? null,
+      totalItems: node?.lineItems?.nodes.length ?? 0,
+      paymentStatus: node.displayFinancialStatus,
+      fulfillStatus: node.displayFulfillmentStatus,
+      poNumber: node.poNumber,
+      date: node.createdAt,
+    };
+  });
+
+  // Slice the items to only return the requested page
+  const paginatedItems = allItems.slice((page - 1) * limit, page * limit);
+
+
+  const totalOrderResp = await getTotalOrder();
+  const totalOrder =
+    typeof totalOrderResp === "object" &&
+    totalOrderResp &&
+    totalOrderResp.ordersCount &&
+    typeof totalOrderResp.ordersCount.count === "number"
+      ? totalOrderResp.ordersCount.count
+      : 0;
+
+  return {
+    data: paginatedItems,
+    pagination: {
+      page,
+      limit,
+      total: totalOrder,
+    }
+  };
+};
+
+
 export const StoreService = {
   getAllCollection,
   getProductsByCollectionHnadle,
@@ -475,4 +525,5 @@ export const StoreService = {
   updateOrderStatus,
   orderHistory,
   orderDetails,
+  getAllOrders,
 };

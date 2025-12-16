@@ -5,6 +5,7 @@ import { UserToken } from '../userToken';
 import { UserTokenRef } from '../userTokenRef/userTokenRef.model';
 import { IBusinessAndMindsetPlan } from './businessAndMindsetPlan.interface';
 import { BusinessAndMindsetPlan } from './businessAndMindsetPlan.model';
+import { USER_ROLES } from '../../../enums/user';
 
 const createToDB = async (payload: IBusinessAndMindsetPlan) => {
   const result = await BusinessAndMindsetPlan.create(payload);
@@ -71,12 +72,8 @@ const getAllFromDB = async (userId: string, query: Record<string, any>) => {
   return { pagination, data: filteredData };
 };
 
-const getByIdFromDB = async (id: string, userId: string) => {
-  const [doc, existingRef, totalToken] = await Promise.all([
-    BusinessAndMindsetPlan.findById(id),
-    UserTokenRef.exists({ ref: id, user: userId }).lean(),
-    UserToken.findOne({ user: userId }),
-  ]);
+const getByIdFromDB = async (id: string, userId: string, role?: string) => {
+  const doc = await BusinessAndMindsetPlan.findById(id);
 
   if (!doc) {
     throw new ApiError(
@@ -84,6 +81,18 @@ const getByIdFromDB = async (id: string, userId: string) => {
       'Business and Mindset Plan not found'
     );
   }
+
+  // If admin or super admin, skip token logic and just return details
+  if (role ===  USER_ROLES.ADMIN || role === USER_ROLES.SUPER_ADMIN) {
+    return doc;
+  }
+
+  // Otherwise apply token & reference logic
+  const [existingRef, totalToken] = await Promise.all([
+    UserTokenRef.exists({ ref: id, user: userId }).lean(),
+    UserToken.findOne({ user: userId }),
+  ]);
+
   if ((totalToken?.numberOfToken ?? 0) < 1 && !existingRef) {
     throw new ApiError(
       StatusCodes.NOT_FOUND,

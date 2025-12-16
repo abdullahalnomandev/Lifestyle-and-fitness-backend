@@ -7,6 +7,7 @@ import { UserTokenRef } from '../userTokenRef/userTokenRef.model';
 import { mealSearchableFields } from './meal.constant';
 import { IMeal } from './meal.interface';
 import { Meal } from './meal.model';
+import { USER_ROLES } from '../../../enums/user';
 
 const createMeal = async (payload: IMeal): Promise<IMeal | null> => {
   const isCategoryExist = await MealAndRecipeCategory.findById(
@@ -66,17 +67,26 @@ const getAllMeals = async (
 
 const getSingleMeal = async (
   id: string,
-  userId: string
+  userId: string,
+  role?: string
 ): Promise<IMeal | null> => {
-  const [doc, existingRef, totalToken] = await Promise.all([
-    Meal.findById(id),
-    UserTokenRef.exists({ ref: id, user: userId }).lean(),
-    UserToken.findOne({ user: userId }),
-  ]);
+  const doc = await Meal.findById(id);
 
   if (!doc) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Meal not found');
   }
+
+  // If admin or super admin, skip token logic and just return details
+  if (role === USER_ROLES.ADMIN || role === USER_ROLES.SUPER_ADMIN) {
+    return doc;
+  }
+
+  // Otherwise apply token & reference logic
+  const [existingRef, totalToken] = await Promise.all([
+    UserTokenRef.exists({ ref: id, user: userId }).lean(),
+    UserToken.findOne({ user: userId }),
+  ]);
+
   if ((totalToken?.numberOfToken ?? 0) < 1 && !existingRef) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'You have no token to unlock.');
   }

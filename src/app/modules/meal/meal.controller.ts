@@ -54,7 +54,7 @@ const getAllMeals = catchAsync(async (req: Request, res: Response) => {
 
 const getSingleMeal = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const result = await MealService.getSingleMeal(id, req.user?.id);
+  const result = await MealService.getSingleMeal(id, req.user?.id,req?.user?.role);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,

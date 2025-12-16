@@ -317,3 +317,64 @@ export const GET_ORDER_DETAILS = `query getOrderByName($query: String!) {
     }
   }
 }`;
+export const TOTAL_ORDER = `query getTotalOrderCount {
+  ordersCount {
+    count
+  }
+}
+`;
+
+export const GET_ALL_ORDERS = `query getOrdersByCustomer($first: Int!, $after: String) {
+  orders(
+    first: $first
+    after: $after
+    sortKey: CREATED_AT
+    reverse: true
+  ) {
+    edges {
+      node {
+        id
+        name
+        poNumber
+        createdAt
+
+        displayFinancialStatus
+        displayFulfillmentStatus
+        closedAt
+
+        totalPriceSet {
+          shopMoney {
+            amount
+            currencyCode
+          }
+        }
+
+        lineItems(first: 5) {
+          nodes {
+            id
+            title
+            quantity
+            product {
+              id
+              images(first: 1) {
+                edges {
+                  node {
+                    originalSrc
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        tags
+        note
+      }
+    }
+
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}`;

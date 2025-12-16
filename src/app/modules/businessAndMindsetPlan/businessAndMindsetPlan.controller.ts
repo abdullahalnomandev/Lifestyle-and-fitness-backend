@@ -56,7 +56,8 @@ const getAll = catchAsync(async (req: Request, res: Response) => {
 const getById = catchAsync(async (req: Request, res: Response) => {
   const result = await BusinessAndMindsetPlanService.getByIdFromDB(
     req.params.id,
-    req?.user?.id
+    req?.user?.id,
+    req?.user?.role
   );
   sendResponse(res, {
     success: true,

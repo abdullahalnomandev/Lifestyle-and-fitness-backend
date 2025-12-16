@@ -26,6 +26,7 @@ import { USER_POST_TYPE } from '../post/post.constant';
 import { Save } from '../post/save';
 import { NETWORK_CONNECTION_STATUS } from '../networkConnetion/networkConnetion.constant';
 import { Story } from '../story/story.model';
+import { getAllAdminOrder, getTotalOrder } from '../store/shopify-gql-api/gql-api';
 
 const createUserToDB = async (
   payload: Partial<IUser>
@@ -294,6 +295,166 @@ const getUserActivityFromDB = async (  requestUserId: string, myUserId: string, 
   };
 };
 
+// DASHBOARD ANALYTICS
+
+
+const getUserStatistics = async (year: number, userId: string) => {
+  // Set months for the whole year
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  
+  // Set the start and end of the year for querying
+  const startDate = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
+  const endDate = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
+
+  // Get new users aggregate per month in a single command
+  const newUsersAgg = await User.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: startDate, $lte: endDate },
+        verified: true,
+      }
+    },
+    {
+      $group: {
+        _id: { month: { $month: "$createdAt" } },
+        count: { $sum: 1 },
+      }
+    }
+  ]);
+
+  // Map month (1-based) to user count for quick lookup
+  const monthToCount = Array(12).fill(0);
+  newUsersAgg.forEach((item: any) => {
+    // Month in MongoDB is 1-indexed (Jan: 1)
+    monthToCount[item._id.month - 1] = item.count;
+  });
+
+  // Only show up to the last month if querying this year
+  const now = new Date();
+  const isThisYear = year === now.getFullYear();
+  const limitMonth = isThisYear ? now.getMonth() + 1 : 12;
+
+  // Compose userStats with cumulative sum
+  let runningTotal = 0;
+  const userStats = [];
+  for (let i = 0; i < limitMonth; i++) {
+    runningTotal += monthToCount[i];
+    userStats.push({
+      month: months[i],
+      newUsers: monthToCount[i],
+      cumulativeNewUsers: runningTotal,
+    });
+  }
+
+  return {
+    year,
+    totalNewUsers: runningTotal,
+    userStats,
+  };
+};
+
+
+
+const statistics = async () => {
+  // Get total counts and total revenue from Shopify
+  const [totalUser, totalReview, totalOrderResp] = await Promise.all([
+    User.countDocuments({ verified: true }),
+    Comment.countDocuments(),
+    getTotalOrder(),
+  ]);
+
+  // Compute totalOrder
+  const totalOrder =
+    typeof totalOrderResp === "object" &&
+    totalOrderResp &&
+    totalOrderResp.ordersCount &&
+    typeof totalOrderResp.ordersCount.count === "number"
+      ? totalOrderResp.ordersCount.count
+      : 0;
+
+  const ordersResult = await getAllAdminOrder(totalOrder || 1000); // fallback to 1000 if no orders (will not affect sum)
+  const edges = ordersResult?.orders?.edges ?? [];
+  const totalRevenue = edges.reduce((sum: number, orderEdge: any) => {
+    const amount = parseFloat(
+      orderEdge.node?.totalPriceSet?.shopMoney?.amount ?? "0"
+    );
+    return sum + (isNaN(amount) ? 0 : amount);
+  }, 0);
+
+  return {
+    totalUser,
+    totalRevenue: Number(totalRevenue.toFixed(2)),
+    totalOrder,
+  };
+};
+
+
+const getAllEarningStatistics = async (year: number) => {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  const startDate = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
+  const endDate = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
+
+  const MAX_ORDER_FETCH = 250; 
+  const ordersResult = await getAllAdminOrder(MAX_ORDER_FETCH);
+  const edges = ordersResult?.orders?.edges ?? [];
+
+  const ordersInYear = edges.filter((orderEdge: any) => {
+    const orderDate = new Date(orderEdge.node?.createdAt);
+    return orderDate >= startDate && orderDate <= endDate;
+  });
+
+  const earningsByMonth = Array(12).fill(0);
+
+  ordersInYear.forEach((orderEdge: any) => {
+    const order = orderEdge.node;
+    const createdAt = new Date(order.createdAt);
+    const amount = parseFloat(order.totalPriceSet?.shopMoney?.amount ?? "0");
+    const monthIndex = createdAt.getUTCMonth();
+    if (!isNaN(amount)) {
+      earningsByMonth[monthIndex] += amount;
+    }
+  });
+
+  // Only show up to this month if year is current
+  const now = new Date();
+  const isThisYear = year === now.getFullYear();
+  const limitMonth = isThisYear ? now.getUTCMonth() + 1 : 12;
+
+  // Prepare earningStats array (no cumulative)
+  const earningStats = [];
+  for (let i = 0; i < limitMonth; i++) {
+    earningStats.push({
+      month: months[i],
+      earning: Number(earningsByMonth[i].toFixed(2)),
+    });
+  }
+
+  // Calculate total earning for the period returned
+  const totalEarning = earningStats.reduce((acc, item) => acc + item.earning, 0);
+
+  return {
+    year,
+    totalEarning: Number(totalEarning.toFixed(2)),
+    earningStats,
+  };
+};
+
+
+const toggleProfileUpdate = async (userId: string) => {
+  // Find the user by ID
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Toggle user status between 'active' and 'delete'
+  user.status = user.status === 'active' ? 'delete' : 'active';
+  await user.save();
+
+  return user;
+}
+
 export const UserService = {
   createUserToDB,
   getUserProfileFromDB,
@@ -302,4 +463,9 @@ export const UserService = {
   getAllUsers,
   getUserProfileByIdFromDB,
   getUserActivityFromDB,
+  statistics,
+  getUserStatistics,
+  getAllEarningStatistics,
+  toggleProfileUpdate
+
 };

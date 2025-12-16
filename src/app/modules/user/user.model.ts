@@ -121,9 +121,10 @@ userSchema.statics.isMatchPassword = async function (password: string, hashPassw
 userSchema.pre('save', async function (next) {
   const user = this as IUser;
 
-  // Only check for existing user on create
+  // Only check for duplicate on create, not on update
+  if (this.isNew) {
     if (user.email) {
-      const isExist = await User.exists({ email: user.email }).lean();
+      const isExist = await User.exists({ email: user.email });
       if (isExist) {
         return next(new ApiError(StatusCodes.BAD_REQUEST, 'Account already exists!'));
       }
@@ -133,9 +134,10 @@ userSchema.pre('save', async function (next) {
         return next(new ApiError(StatusCodes.BAD_REQUEST, 'Account already exists!'));
       }
     }
+  }
 
-    if (!this.password) return next();
-    this.password = await bcrypt.hash(this.password, Number(config.bcrypt_salt_rounds));
+  if (!this.isModified('password')) return next();
+  this.password = await bcrypt.hash(this.password, Number(config.bcrypt_salt_rounds));
 
   next();
 });

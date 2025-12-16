@@ -21,6 +21,7 @@ router.get('/webhook/:id',StoreController.updateOrderStatus);
 
 router.get('/order-history',auth(USER_ROLES.ADMIN,USER_ROLES.USER,USER_ROLES.SUPER_ADMIN),StoreController.orderHistory);
 router.get('/order-history/:orderId',auth(USER_ROLES.ADMIN,USER_ROLES.USER,USER_ROLES.SUPER_ADMIN),StoreController.orderDetails);
+router.get('/all-order',auth(USER_ROLES.ADMIN,USER_ROLES.USER,USER_ROLES.SUPER_ADMIN),StoreController.getAllOrders);
 
 
 

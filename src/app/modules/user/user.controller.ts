@@ -145,6 +145,56 @@ const getUserActivity = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getStatistics = catchAsync(async (req: Request, res: Response) => {
+  const result = await UserService.statistics();
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'User Statistics retrieved successfully',
+    data: result,
+  });
+});
+
+const UserStatistics = catchAsync(async (req: Request, res: Response) => {
+  const year = Number(req.query?.year) || new Date().getFullYear();
+  const userId = req?.user?.id;
+  const result = await UserService.getUserStatistics(year, userId);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'User Statistics retrieved successfully',
+    data: result,
+  });
+});
+
+const UserEarningStatistics = catchAsync(async (req: Request, res: Response) => {
+  const year = Number(req.query?.year) || new Date().getFullYear();
+  const userId = req?.user?.id;
+  const result = await UserService.getAllEarningStatistics(year);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'User earning statistics retrieved successfully',
+    data: result,
+  });
+});
+
+
+const toggleProfileUpdate = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.params.id;
+  const result = await UserService.toggleProfileUpdate(userId);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'User profile update status toggled successfully',
+    data: result,
+  });
+});
+
 export const UserController = {
   createUser,
   getUserProfile,
@@ -153,4 +203,8 @@ export const UserController = {
   getAllUsers,
   getUserProfileById,
   getUserActivity,
+  UserStatistics,
+  getStatistics,
+  UserEarningStatistics,
+  toggleProfileUpdate
 };
