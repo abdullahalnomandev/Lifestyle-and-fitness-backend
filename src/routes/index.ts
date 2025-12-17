@@ -9,6 +9,7 @@ import { CommentRoutes } from '../app/modules/post/comment/comment.route';
 import { LikeRoutes } from '../app/modules/post/like';
 import { PostRoutes } from '../app/modules/post/post.route';
 import { SaveRoutes } from '../app/modules/post/save';
+import { FavouriteRoutes } from '../app/modules/favourite';
 import { PreferenceRoutes } from '../app/modules/preference/preferences.route';
 import { StoryRoutes } from '../app/modules/story/story.route';
 import { TaskCalenderRoutes } from '../app/modules/GymTask/TaskCalender.route';
@@ -75,6 +76,10 @@ const apiRoutes = [
   {
     path: '/meal',
     route: MealRoutes,
+  },
+  {
+    path: '/favourite',
+    route: FavouriteRoutes,
   },
   {
     path: '/gym-and-fitness-plan',
