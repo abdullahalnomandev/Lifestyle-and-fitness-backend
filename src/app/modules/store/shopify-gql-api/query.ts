@@ -378,3 +378,27 @@ export const GET_ALL_ORDERS = `query getOrdersByCustomer($first: Int!, $after: S
     }
   }
 }`;
+
+export const GET_ALL_FAVORITE_PRODUCTS = `query getProductsByIds($ids: [ID!]!) {
+  nodes(ids: $ids) {
+    ... on Product {
+      id
+      title
+      handle
+
+      featuredImage {
+        originalSrc
+      }
+
+      variants(first: 1) {
+        nodes {
+          id
+          title
+          price
+        }
+      }
+    }
+  }
+}
+
+`;

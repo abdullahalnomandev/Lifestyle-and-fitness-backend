@@ -23,6 +23,7 @@ import { Response } from 'express';
 import { UserToken } from '../userToken';
 import { Notification } from '../notification/notification.mode';
 import { USER_ROLES } from '../../../enums/user';
+import { Favourite } from './favourite';
 
 const getAllCollection = async (userId: string): Promise<any> => {
   const productCollections = await getAllProductsCollection(20);
@@ -58,24 +59,39 @@ const getProductsByCollectionHnadle = async (
       ? productCollections?.products?.edges || []
       : productCollections?.collection?.products?.edges || [];
 
+  // Collect all extendIds to filter by for Favourites
+  const extendIds: string[] = collection.map((item: any) => {
+    const node = item.node;
+    return node.id?.split('/').pop() || '';
+  });
+
+  let favouriteExtendIds: string[] = [];
+  if (userId) {
+    const favourites = await Favourite.find({ user: userId, handle: { $in: extendIds } }).lean();
+    favouriteExtendIds = favourites.map((fav: any) => fav.handle);
+  }
+
   const formattedProducts = collection.map((item: any) => {
     const node = item.node;
 
     const firstImage = node.images?.edges?.[0]?.node?.originalSrc || null;
     const firstVariant = node.variants?.edges?.[0]?.node || {};
 
+    const extendId = node.id?.split('/').pop() || null;
+    const isFavorite = favouriteExtendIds.includes(extendId);
+
     return {
       id: node.id,
+      extendId: extendId,
       title: node.title,
-      handle: node.handle,
+      handle: extendId, // handle is now extendId as per instructions
       availableForSale: node.availableForSale,
       image: firstImage,
-
       variantId: firstVariant.id || null,
       variantTitle: firstVariant.title || null,
-
       price: firstVariant.price?.amount || null,
       currency: firstVariant.price?.currencyCode || null,
+      isFavorite: isFavorite,
     };
   });
 

@@ -4,6 +4,7 @@ import {
   CREATE_ORDER,
   DELETE_ORDER,
   GET_ALL_COLLECTION,
+  GET_ALL_FAVORITE_PRODUCTS,
   GET_ALL_ORDERS,
   GET_ALL_PRODUCT_COLLECTION,
   GET_ALL_PRODUCTS,
@@ -66,4 +67,6 @@ export const getCustomerOrders = async (customerId: string) => runShopifyQuery(a
 export const getOrderDetails = async (id: string) =>  runShopifyQuery(adminClient, GET_ORDER_DETAILS, { query: `name:${id}`});
 export const getTotalOrder = async () =>  runShopifyQuery(adminClient, TOTAL_ORDER, {});
 export const getAllAdminOrder = async ($first: number, $after?: string) => runShopifyQuery(adminClient, GET_ALL_ORDERS, { first: $first, after: $after });
+export const getAllFavoriteProducts = async (ids: string[]) =>  runShopifyQuery(adminClient, GET_ALL_FAVORITE_PRODUCTS, { ids }
+  );
 

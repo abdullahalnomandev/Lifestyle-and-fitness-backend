@@ -1,6 +1,6 @@
 import express from 'express';
-import { USER_ROLES } from '../../../enums/user';
-import auth from '../../middlewares/auth';
+import { USER_ROLES } from '../../../../enums/user';
+import auth from '../../../middlewares/auth';
 import { FavouriteController } from './favourite.controller';
 
 const router = express.Router();
@@ -12,7 +12,7 @@ router.post(
 );
 
 router.get(
-  '/',
+  '/products',
   auth(USER_ROLES.USER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
   FavouriteController.getUserFavourites
 );

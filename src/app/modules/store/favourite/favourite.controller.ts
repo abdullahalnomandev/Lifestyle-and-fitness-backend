@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
-import catchAsync from '../../../shared/catchAsync';
-import sendResponse from '../../../shared/sendResponse';
+import catchAsync from '../../../../shared/catchAsync';
+import sendResponse from '../../../../shared/sendResponse';
 import { FavouriteService } from './favourite.service';
 
 const toggleFavourite = catchAsync(
