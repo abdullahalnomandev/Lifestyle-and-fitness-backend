@@ -70,7 +70,7 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
   // Find all stories in last 24h (exclude own if provided)
   const storyFilter: any = {
     creator: { $in: userIds },
-    createdAt: { $gte: oneDayAgo.toDate(), $lte: now.toDate() }
+    createdAt: { $gte: oneDayAgo.toDate(), $lte: now.toDate() },
   };
   if (userId) {
     storyFilter.creator.$ne = userId;
@@ -90,12 +90,26 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
   // Watch status for user
   const allStoryIds = recentStories.map(story => story._id);
   let watchedStoryIds = new Set<string>();
+  let watchedMapByCreator: Record<string, Set<string>> = {};
   if (userId) {
     const watched = await UserWatchStory.find({
       user: userId,
       story: { $in: allStoryIds }
     }).lean();
     watchedStoryIds = new Set(watched.map(s => s.story.toString()));
+
+    // Build a map from creator id to set of story ids watched by this user for that creator
+    watched.forEach(w => {
+      // Get the story's creator (from storiesByUser mapping)
+      const storyId = w.story.toString();
+      // Find which creator this story belongs to by looking it up in storiesByUser
+      Object.entries(storiesByUser).forEach(([creatorId, stories]) => {
+        if (stories.some(s => s._id.toString() === storyId)) {
+          if (!watchedMapByCreator[creatorId]) watchedMapByCreator[creatorId] = new Set();
+          watchedMapByCreator[creatorId].add(storyId);
+        }
+      });
+    });
   }
 
   // IDs, maps for batch processing
@@ -128,7 +142,6 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
   }
 
   // Build fast lookup maps for priorities
-  // (similar to @post.service.ts for post priorities)
   const connectionMap = new Map();
   connections.forEach(c => {
     const key = [c.requestFrom.toString(), c.requestTo.toString()]
@@ -144,8 +157,11 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
   // Build priority logic
   // Priority:
   //   1: NetworkConnection.status === ACCEPTED (bidirectional, as in post.service.ts)
-  //   2: profile_mode = public && has at least one story not watched
+  //   2: profile_mode = public && has at least one story
   // (Those with no stories are skipped)
+
+  // Changed logic: Do NOT require "has unwatched" for unauth users or even watched stories, 
+  // always show if priority 2 matches, do not hide based on watchlist
 
   const data = users
     .map(user => {
@@ -168,20 +184,23 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
         priority = 1;
         showStatus = "accepted";
       } else {
-        // Priority 2: profile public, and has unwatched story
-        // profile_mode should come from user.profile_mode (not separate map)
+        // Priority 2: profile public (now show always, even if all watched), i.e. just public & has stories
         const profileMode = user.profile_mode || "";
         const isPublic = profileMode === "public" || !profileMode;
         if (isPublic) {
-          const hasUnwatched = userStories.some(story => !watchedStoryIds.has(story._id.toString()));
-          if (hasUnwatched) {
-            priority = 2;
-            showStatus = "public";
-          }
+          priority = 2;
+          showStatus = "public";
         }
       }
 
       if (priority === 0) return null;
+
+      // Compute isWatched: true if all userStories are in watched for this user, otherwise false
+      let isWatched = false;
+      if (userId) {
+        const watchedStoriesForUser = watchedMapByCreator[uid] || new Set();
+        isWatched = userStories.length > 0 && userStories.every(story => watchedStoriesForUser.has(story._id.toString()));
+      }
 
       return {
         _id: user._id,
@@ -189,11 +208,12 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
         image: user.image,
         storyCount: userStories.length,
         priority,
-        connectionStatus: showStatus
+        connectionStatus: showStatus,
+        isWatched: isWatched
       };
     })
     .filter(Boolean)
-    // Only show priority 1 or 2 (accepted, public with unwatched)
+    // Only show priority 1 or 2 (accepted, public)
     .filter(u => u!.priority === 1 || u!.priority === 2) as Array<any>;
 
   // Sort priorities (1 = top)
@@ -219,6 +239,193 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
     },
   };
 };
+
+// const getAllStories = async (query: Record<string, any>, userId?: string) => {
+//   // Fetch users with filtering/sorting (no pagination yet)
+//   const storyQuery = new QueryBuilder(User.find(), query)
+//     .fields()
+//     .filter()
+//     .sort();
+
+//   const users = await storyQuery.modelQuery;
+//   const now = dayjs();
+//   const oneDayAgo = now.subtract(24, 'hour');
+//   const userIds = users.map((user: any) => user._id);
+
+//   // Find all stories in last 24h (exclude own if provided)
+//   const storyFilter: any = {
+//     creator: { $in: userIds },
+//     createdAt: { $gte: oneDayAgo.toDate(), $lte: now.toDate() },
+//   };
+//   if (userId) {
+//     storyFilter.creator.$ne = userId;
+//   }
+
+//   const recentStories = await Story.find(storyFilter).lean();
+
+//   // Group stories by creator
+//   const storiesByUser: Record<string, any[]> = {};
+//   recentStories.forEach(story => {
+//     if (!story.creator) return;
+//     const creatorId = story.creator.toString();
+//     if (!storiesByUser[creatorId]) storiesByUser[creatorId] = [];
+//     storiesByUser[creatorId].push(story);
+//   });
+
+//   // Watch status for user
+//   const allStoryIds = recentStories.map(story => story._id);
+//   let watchedStoryIds = new Set<string>();
+//   let watchedMapByCreator: Record<string, Set<string>> = {};
+//   if (userId) {
+//     const watched = await UserWatchStory.find({
+//       user: userId,
+//       story: { $in: allStoryIds }
+//     }).lean();
+//     watchedStoryIds = new Set(watched.map(s => s.story.toString()));
+
+//     // Build a map from creator id to set of story ids watched by this user for that creator
+//     watched.forEach(w => {
+//       // Get the story's creator (from storiesByUser mapping)
+//       const storyId = w.story.toString();
+//       // Find which creator this story belongs to by looking it up in storiesByUser
+//       Object.entries(storiesByUser).forEach(([creatorId, stories]) => {
+//         if (stories.some(s => s._id.toString() === storyId)) {
+//           if (!watchedMapByCreator[creatorId]) watchedMapByCreator[creatorId] = new Set();
+//           watchedMapByCreator[creatorId].add(storyId);
+//         }
+//       });
+//     });
+//   }
+
+//   // IDs, maps for batch processing
+//   const creatorIds = users.map((u: any) => u._id.toString());
+//   let connections: any[] = [];
+//   let pendingConnections: any[] = [];
+//   let creators: any[] = [];
+
+//   // Parallel batch queries (mimic @post.service.ts)
+//   if (userId) {
+//     [
+//       connections,
+//       pendingConnections,
+//       creators
+//     ] = await Promise.all([
+//       NetworkConnection.find({
+//         $or: [
+//           { requestFrom: userId, requestTo: { $in: creatorIds } },
+//           { requestFrom: { $in: creatorIds }, requestTo: userId }
+//         ]
+//       }).lean(),
+//       NetworkConnection.find({
+//         requestFrom: userId,
+//         requestTo: { $in: creatorIds },
+//         status: NETWORK_CONNECTION_STATUS.PENDING
+//       }).lean(),
+//       User.find({ _id: { $in: creatorIds } })
+//         .lean()
+//     ]);
+//   }
+
+//   // Build fast lookup maps for priorities
+//   const connectionMap = new Map();
+//   connections.forEach(c => {
+//     const key = [c.requestFrom.toString(), c.requestTo.toString()]
+//       .sort()
+//       .join('-');
+//     connectionMap.set(key, c.status);
+//   });
+
+//   const pendingMap = new Set(
+//     pendingConnections.map(c => c.requestTo.toString())
+//   );
+
+//   // Build priority logic
+//   // Priority:
+//   //   1: NetworkConnection.status === ACCEPTED (bidirectional, as in post.service.ts)
+//   //   2: profile_mode = public && has at least one story not watched
+//   // (Those with no stories are skipped)
+
+//   const data = users
+//     .map(user => {
+//       const uid = user._id.toString();
+//       const userStories = storiesByUser[uid] || [];
+//       if (userStories.length === 0) return null; // no stories
+
+//       // Find connection status between userId and uid
+//       let connectionStatus = 'not_requested';
+//       let priority = 0;
+//       let showStatus = '';
+
+//       if (userId) {
+//         const key = [uid, userId].sort().join('-');
+//         connectionStatus = connectionMap.get(key) || 'not_requested';
+//       }
+
+//       // Priority 1: Connected (accepted)
+//       if (connectionStatus === NETWORK_CONNECTION_STATUS.ACCEPTED) {
+//         priority = 1;
+//         showStatus = "accepted";
+//       } else {
+//         // Priority 2: profile public, and has unwatched story
+//         // profile_mode should come from user.profile_mode (not separate map)
+//         const profileMode = user.profile_mode || "";
+//         const isPublic = profileMode === "public" || !profileMode;
+//         if (isPublic) {
+//           const hasUnwatched = userStories.some(story => !watchedStoryIds.has(story._id.toString()));
+//           if (hasUnwatched) {
+//             priority = 2;
+//             showStatus = "public";
+//           }
+//         }
+//       }
+
+//       if (priority === 0) return null;
+
+//       // Compute isWatched: true if all userStories are in watched for this user, otherwise false
+//       let isWatched = false;
+//       if (userId) {
+//         const watchedStoriesForUser = watchedMapByCreator[uid] || new Set();
+//         isWatched = userStories.length > 0 && userStories.every(story => watchedStoriesForUser.has(story._id.toString()));
+//       }
+
+//       return {
+//         _id: user._id,
+//         name: user.name,
+//         image: user.image,
+//         storyCount: userStories.length,
+//         priority,
+//         connectionStatus: showStatus,
+//         isWatched: isWatched
+//       };
+//     })
+//     .filter(Boolean)
+//     // Only show priority 1 or 2 (accepted, public with unwatched)
+//     .filter(u => u!.priority === 1 || u!.priority === 2) as Array<any>;
+
+//   // Sort priorities (1 = top)
+//   data.sort((a, b) => a.priority - b.priority);
+
+//   // Pagination after filtering/sorting
+//   const limit = Number(query.limit) || 10;
+//   const page = Number(query.page) || 1;
+//   const skip = (page - 1) * limit;
+//   const paginatedData = data.slice(skip, skip + limit);
+//   const total = data.length;
+//   const totalPage = Math.ceil(total / limit);
+//   const paginationInfo = await storyQuery.getPaginationInfo();
+
+//   return {
+//     data: paginatedData,
+//     pagination: {
+//       ...paginationInfo,
+//       total,
+//       totalPage,
+//       page,
+//       limit,
+//     },
+//   };
+// };
+
 
 
 

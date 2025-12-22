@@ -74,6 +74,17 @@ const resendEmail = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const verifyOTPToDb = catchAsync(async (req: Request, res: Response) => {
+  const {email, otp} = req.body;
+  await AuthService.verifyOTP(email,otp);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'OTP successfully sent',
+  });
+});
+
 export const AuthController = {
   resendEmail,
   verifyEmail,
@@ -81,4 +92,5 @@ export const AuthController = {
   forgetPassword,
   resetPassword,
   changePassword,
+  verifyOTPToDb
 };

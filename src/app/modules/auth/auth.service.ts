@@ -320,6 +320,34 @@ const resendEmailToDB = async (email: string) => {
   return { message: 'OTP resend successfully' };
 };
 
+
+const verifyOTP = async (email: string, otp: string) => {
+  const registeredUser = await User.findOne({ email }).lean();
+
+  if (!registeredUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'User not found');
+  }
+
+  if (registeredUser?.verified) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'This account already verified'
+    );
+  }
+
+  // Check if OTP is valid and not expired
+  if (
+    !registeredUser.authorization ||
+    registeredUser.authorization.oneTimeCode !== otp ||
+    registeredUser.authorization.expireAt < new Date()
+  ) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid or expired OTP');
+  }
+
+  return { message: 'OTP is valid' };
+};
+
+
 export const AuthService = {
   resendEmailToDB,
   verifyEmailToDB,
@@ -327,4 +355,5 @@ export const AuthService = {
   forgetPasswordToDB,
   resetPasswordToDB,
   changePasswordToDB,
+  verifyOTP
 };

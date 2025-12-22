@@ -9,6 +9,8 @@ const createPost = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const user = req.user;
     let image = getMultipleFilesPath(req.files, 'image');
+    let media = getMultipleFilesPath(req.files, 'media');
+
     const data: any = {
       ...req.body,
       creator: user?.id,
@@ -16,6 +18,9 @@ const createPost = catchAsync(
 
     if (image && image.length > 0) {
       data.image = image;
+    }
+    if (media && media.length > 0) {
+      data.media = media;
     }
     const result = await PostService.createPost(data);
 

@@ -36,6 +36,11 @@ router.post(
 );
 
 router.post(
+  '/verify-otp',
+  AuthController.verifyOTPToDb
+);
+
+router.post(
   '/change-password',
   auth(USER_ROLES.ADMIN, USER_ROLES.USER),
   validateRequest(AuthValidation.createChangePasswordZodSchema),
