@@ -3,7 +3,7 @@ import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import { TaskCalenderService } from './TaskCalender.service';
-import { getMultipleFilesPath } from '../../../shared/getFilePath';
+import { getMultipleFilesPath, getSingleFilePath } from '../../../shared/getFilePath';
 
 const createTaskCalender = catchAsync(async (req: Request, res: Response) => {
   const data = req.body;
@@ -35,17 +35,17 @@ const getAllTaskCalenders = catchAsync(async (req: Request, res: Response) => {
 
 const uploadWorkoutPicture = catchAsync(async (req: Request, res: Response) => {
   const user = req.user;
-  let image = getMultipleFilesPath(req.files, 'image');
+  let image = getSingleFilePath(req.files, 'image');
+  let caption = req.body.caption;
 
-
-  const result = await TaskCalenderService.uploadWorkoutPicture(user, image as any);
+  const result = await TaskCalenderService.uploadWorkoutPicture(user, image as any, caption);
 
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
     message: 'Workout picture uploaded successfully',
     data: result,
-  })
+  });
 });
 
 

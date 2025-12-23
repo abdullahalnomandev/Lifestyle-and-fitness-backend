@@ -171,7 +171,8 @@ const createTaskCalendar = async (payload: ITaskCalendar, userId: string) => {
 };
 
 const getAllTaskCalenders = async (query: Record<string, any>) => {
-  let { year, month } = query;
+  let year = query.year;
+  let month = query.month;
 
   if (!year || !month) {
     const now = dayjs();
@@ -179,7 +180,7 @@ const getAllTaskCalenders = async (query: Record<string, any>) => {
     month = now.month() + 1; // dayjs months are 0-based, add 1 for consistency
   }
 
-  // Find TaskCalendar
+  // Find TaskCalendar for the requested year and month
   const taskCalendar = await TaskCalendar.findOne({ year, month }).lean();
 
   const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -196,6 +197,8 @@ const getAllTaskCalenders = async (query: Record<string, any>) => {
   };
 
   const today = dayjs().startOf('day');
+  const currentYear = today.year();
+  const currentMonth = today.month() + 1; // dayjs .month() is 0-based
 
   // Get Monday of the current week
   const startOfWeek =
@@ -212,18 +215,33 @@ const getAllTaskCalenders = async (query: Record<string, any>) => {
       : []
   );
 
-  // Create final week result
+  // Only show "active: true" if
+  // 1. The requested year and month are the current year and month
+  // 2. There is a taskCalendar in DB for this year/month
+  // 3. The date is today's date
+  const isCurrentYearMonth =
+    Number(year) === currentYear && Number(month) === currentMonth;
+
+  const validTaskCalendar = !!taskCalendar;
+
   const days = weekDays.map((label, idx) => {
-    const dateObj = dayjs(startOfWeek).add(idx, 'day'); // clone to avoid mutation
+    const dateObj = dayjs(startOfWeek).add(idx, 'day');
     const formatted = dateObj.format('YYYY-MM-DD');
-    const isActive = dateObj.isSame(today, 'day');
+    const isActiveDay = dateObj.isSame(today, 'day');
+
     const result: any = {
       day: label,
-      date: formatted,
+      // date: formatted,
       selected: selectedDatesSet.has(formatted),
       work: weekWork[label],
     };
-    if (isActive) {
+
+    // Only add 'active: true' when all conditions met
+    if (
+      isActiveDay &&
+      isCurrentYearMonth &&
+      validTaskCalendar
+    ) {
       result.active = true;
     }
     return result;
@@ -231,16 +249,16 @@ const getAllTaskCalenders = async (query: Record<string, any>) => {
 
   return { 
     data: { 
-      year: Number(query?.year ?? taskCalendar?.year),
-      month: Number(query?.month ?? taskCalendar?.month),
-      selectedStartDate:taskCalendar?.selectedStartDate,
-      selectedEndDate:taskCalendar?.selectedEndDate,
-     days 
-  } 
-};
+      year: Number(year ?? taskCalendar?.year),
+      month: Number(month ?? taskCalendar?.month),
+      selectedStartDate: taskCalendar?.selectedStartDate,
+      selectedEndDate: taskCalendar?.selectedEndDate,
+      days,
+    } 
+  };
 };
 
-const uploadWorkoutPicture = async (user: any, images: string[], year?: number, month?: number) => {
+const uploadWorkoutPicture = async (user: any, image: string, caption: string, year?: number, month?: number) => {
   const userId = user?.id;
 
   if (!userId) {
@@ -266,9 +284,11 @@ const uploadWorkoutPicture = async (user: any, images: string[], year?: number, 
     }
   }
 
-  taskCalendar.workoutPictures.push(
-    ...images.map(img => ({ date: new Date(), image: img }))
-  );
+  taskCalendar.workoutPictures.push({
+    date: new Date(),
+    image,
+    caption
+  });
 
   await taskCalendar.save();
 
