@@ -28,6 +28,17 @@ router.get('/workout-progress',
   TaskCalenderController.getWorkoutProgress
 );
 
+router.patch('/update-workout-picture/:pictureId',
+  fileUploadHandler(),
+  auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
+  TaskCalenderController.updateWorkoutPicture
+);
+
+router.delete('/delete-workout-picture/:pictureId',
+  auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
+  TaskCalenderController.deleteWorkoutPicture
+);
+
 
 export const TaskCalenderRoutes = router;
 

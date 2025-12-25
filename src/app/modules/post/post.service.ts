@@ -3,9 +3,7 @@ import ApiError from '../../../errors/ApiError';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { Comment } from './comment/comment.model';
 import { Like } from './like';
-import {
-  POST_TYPE
-} from './post.constant';
+import { POST_TYPE, USER_POST_TYPE } from './post.constant';
 import { IPOST } from './post.interface';
 import { Post } from './post.model';
 import { User } from '../user/user.model';
@@ -17,6 +15,7 @@ import { NETWORK_CONNECTION_STATUS } from '../networkConnetion/networkConnetion.
 import { Preference } from '../preference/preferences.model';
 import { Save } from './save';
 import { PROFILE_MODE } from '../user/user.constant';
+import { PostView } from './postView/postView.model';
 
 //Create a new club
 const createPost = async (payload: IPOST) => {
@@ -173,13 +172,16 @@ const getAllPosts = async (query: Record<string, any>, userId: string) => {
     .populate('creator', '_id name image profile_mode');
 
   const postIds = allPosts.map((p: any) => p._id);
-  const creatorIds = allPosts.map((p: any) => p.creator?._id.toString()).filter(Boolean);
+  const creatorIds = allPosts
+    .map((p: any) => p.creator?._id.toString())
+    .filter(Boolean);
 
   // Load user preferences once
   const currentUser = await User.findById(userId)
     .populate('preferences')
     .lean();
-  const userPrefIds = currentUser?.preferences?.map((p: any) => p._id.toString()) || [];
+  const userPrefIds =
+    currentUser?.preferences?.map((p: any) => p._id.toString()) || [];
 
   // -------------------------------
   // BATCH QUERIES (0 inside loop)
@@ -251,42 +253,48 @@ const getAllPosts = async (query: Record<string, any>, userId: string) => {
   // -------------------------------
   // BUILD RESPONSE (NO DB CALLS)
   // -------------------------------
-  const enriched = allPosts.map((post: any) => {
-    const postId = post._id.toString();
-    const creatorId = post.creator?._id?.toString();
+  const enriched = allPosts
+    .map((post: any) => {
+      const postId = post._id.toString();
+      const creatorId = post.creator?._id?.toString();
 
-    if (!creatorId) {
-      return null;
-    }
-
-    const key = [creatorId, userId].sort().join('-');
-    const connectionStatus = connectionMap.get(key) || 'not_requested';
-
-    let priority = 4;
-
-    if (connectionStatus === NETWORK_CONNECTION_STATUS.ACCEPTED) {
-      priority = 1;
-    } else if (pendingMap.has(creatorId) && post.creator.profile_mode === PROFILE_MODE.PUBLIC) {
-      priority = 2;
-    } else {
-      const creatorPrefs = creatorPrefMap.get(creatorId) || [];
-      const hasMatch = creatorPrefs.some((id: string) => userPrefIds.includes(id));
-      if (hasMatch && post.creator.profile_mode === PROFILE_MODE.PUBLIC) {
-        priority = 3;
+      if (!creatorId) {
+        return null;
       }
-    }
 
-    return {
-      ...post,
-      commentOfPost: commentMap[postId] || 0,
-      likeOfPost: likeMap[postId] || 0,
-      isOwner: creatorId === userId,
-      isLiked: likedMap.has(postId),
-      hasSave: savedMap.has(postId),
-      priority,
-      connectionStatus,
-    };
-  })
+      const key = [creatorId, userId].sort().join('-');
+      const connectionStatus = connectionMap.get(key) || 'not_requested';
+
+      let priority = 4;
+
+      if (connectionStatus === NETWORK_CONNECTION_STATUS.ACCEPTED) {
+        priority = 1;
+      } else if (
+        pendingMap.has(creatorId) &&
+        post.creator.profile_mode === PROFILE_MODE.PUBLIC
+      ) {
+        priority = 2;
+      } else {
+        const creatorPrefs = creatorPrefMap.get(creatorId) || [];
+        const hasMatch = creatorPrefs.some((id: string) =>
+          userPrefIds.includes(id)
+        );
+        if (hasMatch && post.creator.profile_mode === PROFILE_MODE.PUBLIC) {
+          priority = 3;
+        }
+      }
+
+      return {
+        ...post,
+        commentOfPost: commentMap[postId] || 0,
+        likeOfPost: likeMap[postId] || 0,
+        isOwner: creatorId === userId,
+        isLiked: likedMap.has(postId),
+        hasSave: savedMap.has(postId),
+        priority,
+        connectionStatus,
+      };
+    })
     .filter((post): post is NonNullable<typeof post> => post !== null)
     // Only keep priorities 1, 2, and 3
     .filter(post => post.priority !== 4);
@@ -361,6 +369,20 @@ const getALlUserLikedPost = async (
     data: grouped,
   };
 };
+
+const viewVideo = async (userId: string, videoId: string) => {
+  const post = (await Post.findById(videoId)) as IPOST;
+  if (post.type !== USER_POST_TYPE.VIDEO) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Video post not found');
+  }
+
+  let existingView = await PostView.findOne({ video: videoId, user: userId });
+  if (!existingView) {
+    existingView = await PostView.create({ video: videoId, user: userId });
+  }
+
+  return existingView;
+};
 export const PostService = {
   createPost,
   getAllMyDrafts,
@@ -369,4 +391,5 @@ export const PostService = {
   findById,
   getAllPosts,
   getALlUserLikedPost,
+  viewVideo,
 };

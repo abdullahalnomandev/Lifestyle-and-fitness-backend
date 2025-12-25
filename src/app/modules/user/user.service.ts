@@ -27,6 +27,9 @@ import { Save } from '../post/save';
 import { NETWORK_CONNECTION_STATUS } from '../networkConnetion/networkConnetion.constant';
 import { Story } from '../story/story.model';
 import { getAllAdminOrder, getTotalOrder } from '../store/shopify-gql-api/gql-api';
+import { updateUserAccessFeature } from '../../../util/updateUserAccessFeature';
+import e from 'cors';
+import { PostView } from '../post/postView/postView.model';
 
 const createUserToDB = async (
   payload: Partial<IUser>
@@ -53,6 +56,7 @@ const createUserToDB = async (
     if (tokenData) payload.verified = true;
 
     const isExist = await User.exists({ email: tokenData?.data?.email }).lean();
+    await updateUserAccessFeature(isExist?._id as any);
 
     if (isExist) {
       const createToken = jwtHelper.createToken(
@@ -103,6 +107,8 @@ const createUserToDB = async (
     await User.findByIdAndUpdate(createUser._id, { $set: { authorization } });
     return createUser;
   } else {
+    // Fix: 'isExist' is not defined in this scope. Use createUser instead.
+    await updateUserAccessFeature(createUser._id as any);
     //create token
     const createToken = jwtHelper.createToken(
       { id: createUser._id, role: createUser.role, email: createUser.email },
@@ -157,7 +163,7 @@ const updateProfileToDB = async (
     delete payload.email;
   }
 
-  if (payload.image) {
+  if (payload.image === isExistUser.image) {
     unlinkFile(payload.image as string);
   }
 
@@ -264,30 +270,76 @@ const getUserProfileByIdFromDB = async (
 };
 
 
-const getUserActivityFromDB = async (  requestUserId: string, myUserId: string, query: Record<string, any> ): Promise<{ data: any[]; pagination: any }> => {
-  // Get user activity based on type
-  let activityQuery;
+const getUserActivityFromDB = async (
+  requestUserId: string,
+  myUserId: string,
+  query: Record<string, any>
+): Promise<{ data: any[]; pagination: any }> => {
+  let activityQuery: any;
+  let includeVideoCount = false;
 
-   if (query.type === ACTIVITY_TYPE.PHOTO)  activityQuery = Post.find({ creator: requestUserId });
-   else if (query.type === ACTIVITY_TYPE.LIKE)  activityQuery = Like.find({ user: requestUserId }).populate('post'); 
-   else if (query.type === ACTIVITY_TYPE.SAVE) activityQuery = Save.find({ user: requestUserId }).populate('post');
-   else if (query.type === ACTIVITY_TYPE.STORY) activityQuery = Story.find({ creator: requestUserId }).populate('creator');
-  //  else activityQuery = Post.find({ creator: requestUserId });
+  if (query.type === ACTIVITY_TYPE.POST) {
+    activityQuery = Post.find({ creator: requestUserId });
+    includeVideoCount = true;
+  } else if (query.type === ACTIVITY_TYPE.VIDEO) {
+    activityQuery = Post.find({
+      creator: requestUserId,
+      type: USER_POST_TYPE.VIDEO,
+    });
+    includeVideoCount = true;
+  } else if (query.type === ACTIVITY_TYPE.LIKE) {
+    activityQuery = Like.find({ user: requestUserId }).populate('post');
+  } else if (query.type === ACTIVITY_TYPE.SAVE) {
+    activityQuery = Save.find({ user: requestUserId }).populate('post');
+  } else if (query.type === ACTIVITY_TYPE.STORY) {
+    activityQuery = Story.find({ creator: requestUserId }).populate('creator');
+  }
+
   if (!activityQuery) {
     throw new Error('Invalid activity type');
   }
 
-  const userQuery = new QueryBuilder(
-    activityQuery as any, // Explicitly cast to any to satisfy QueryBuilder type check
-    query
-  )
+  const userQuery = new QueryBuilder(activityQuery, query)
     .paginate()
     .fields()
-    .filter(['type'])
     .sort();
 
-  const result = await userQuery.modelQuery;
+  let result = await userQuery.modelQuery.lean();
   const pagination = await userQuery.getPaginationInfo();
+
+  /**
+   * VIDEO VIEW COUNT LOGIC
+   */
+  if (includeVideoCount && Array.isArray(result)) {
+    const postIds = result
+      .filter((post: any) => post.type === USER_POST_TYPE.VIDEO)
+      .map((post: any) => post._id);
+
+    const videoViewMap: Record<string, number> = {};
+
+    if (postIds.length > 0) {
+      const viewCounts = await PostView.aggregate([
+        { $match: { video: { $in: postIds } } },
+        {
+          $group: {
+            _id: '$video',
+            count: { $sum: 1 },
+          },
+        },
+      ]);
+
+      for (const vc of viewCounts) {
+        videoViewMap[vc._id.toString()] = vc.count;
+      }
+    }
+
+    result = result.map((item: any) => ({
+      ...item,
+      ...(item.type === USER_POST_TYPE.VIDEO && {
+        videoViewCount: videoViewMap[item._id.toString()] || 0,
+      }),
+    }));
+  }
 
   return {
     data: result,

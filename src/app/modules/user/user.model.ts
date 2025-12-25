@@ -10,13 +10,17 @@ import { PROFILE_MODE, USER_AUTH_PROVIDER } from './user.constant';
 const userSchema = new Schema<IUser, UserModel>(
   {
     name: {
-      type: String
+      type: String,
     },
     email: {
       type: String,
       unique: true,
       lowercase: true,
       sparse: true,
+    },
+    canAccessFeature: {
+      type: Boolean,
+      default: false,
     },
     image: {
       type: String,
@@ -31,7 +35,7 @@ const userSchema = new Schema<IUser, UserModel>(
     },
     password: {
       type: String,
-      select: false
+      select: false,
     },
     role: {
       type: String,
@@ -77,8 +81,8 @@ const userSchema = new Schema<IUser, UserModel>(
     preferences: [
       {
         type: Schema.Types.ObjectId,
-        ref: 'Preference'
-      }
+        ref: 'Preference',
+      },
     ],
     authorization: {
       oneTimeCode: { type: String },
@@ -112,7 +116,10 @@ userSchema.statics.isExistUserByEmail = async function (email: string) {
 };
 
 // Compare passwords
-userSchema.statics.isMatchPassword = async function (password: string, hashPassword: string): Promise<boolean> {
+userSchema.statics.isMatchPassword = async function (
+  password: string,
+  hashPassword: string
+): Promise<boolean> {
   return await bcrypt.compare(password, hashPassword);
 };
 
@@ -126,23 +133,27 @@ userSchema.pre('save', async function (next) {
     if (user.email) {
       const isExist = await User.exists({ email: user.email });
       if (isExist) {
-        return next(new ApiError(StatusCodes.BAD_REQUEST, 'Account already exists!'));
+        return next(
+          new ApiError(StatusCodes.BAD_REQUEST, 'Account already exists!')
+        );
       }
     } else if (user.mobile) {
       const isExist = await User.exists({ mobile: user.mobile });
       if (isExist) {
-        return next(new ApiError(StatusCodes.BAD_REQUEST, 'Account already exists!'));
+        return next(
+          new ApiError(StatusCodes.BAD_REQUEST, 'Account already exists!')
+        );
       }
     }
   }
 
   if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, Number(config.bcrypt_salt_rounds));
+  this.password = await bcrypt.hash(
+    this.password,
+    Number(config.bcrypt_salt_rounds)
+  );
 
   next();
 });
 
-
 export const User = model<IUser, UserModel>('User', userSchema);
-
-

@@ -20,6 +20,8 @@ import {
 import { IUser } from '../user/user.interface';
 import generateOTP from '../../../util/generateOTP';
 import { ICreateAccount } from '../../../types/emailTamplate';
+import { findShopifyCustomer } from '../store/shopify-gql-api/gql-api';
+import { updateUserAccessFeature } from '../../../util/updateUserAccessFeature';
 
 //login
 const loginUserFromDB = async (payload: ILoginData) => {
@@ -89,12 +91,17 @@ const loginUserFromDB = async (payload: ILoginData) => {
     );
   }
 
+  // update canAccessFeature
+  await updateUserAccessFeature(userInfo._id as any);
+
   //create token
   const createToken = jwtHelper.createToken(
     { id: userInfo._id, role: userInfo.role, email: userInfo.email },
     config.jwt.jwt_secret as Secret,
     config.jwt.jwt_expire_in as string
   );
+
+
 
   // Remove password from userInfo before returning
   if (userInfo && userInfo.password) {
@@ -181,6 +188,7 @@ const verifyEmailToDB = async (otp: string) => {
     },
     { new: true }
   );
+  await updateUserAccessFeature(registeredUser?._id as any);
 
   //create token
   const createToken = jwtHelper.createToken(
@@ -193,7 +201,11 @@ const verifyEmailToDB = async (otp: string) => {
   if (registeredUser && registeredUser.password) {
     registeredUser.password = undefined as any;
   }
-  return { message: 'Account verified successfully', token: createToken,userInfo:registeredUser };
+  return {
+    message: 'Account verified successfully',
+    token: createToken,
+    userInfo: registeredUser,
+  };
 };
 
 //forget password
@@ -320,7 +332,6 @@ const resendEmailToDB = async (email: string) => {
   return { message: 'OTP resend successfully' };
 };
 
-
 const verifyOTP = async (email: string, otp: string) => {
   const registeredUser = await User.findOne({ email }).lean();
 
@@ -347,7 +358,6 @@ const verifyOTP = async (email: string, otp: string) => {
   return { message: 'OTP is valid' };
 };
 
-
 export const AuthService = {
   resendEmailToDB,
   verifyEmailToDB,
@@ -355,5 +365,5 @@ export const AuthService = {
   forgetPasswordToDB,
   resetPasswordToDB,
   changePasswordToDB,
-  verifyOTP
+  verifyOTP,
 };

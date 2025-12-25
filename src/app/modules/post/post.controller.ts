@@ -112,6 +112,20 @@ const getALlUserLikedPost = catchAsync(async (req: Request, res: Response) => {
 });
 
 
+const viewVideo = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+  const videoId = req.params?.videoId;
+  const result = await PostService.viewVideo(userId, videoId);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Video viewed successfully',
+    data: result
+  });
+});
+
+
 
 export const PostController = {
   createPost,
@@ -120,5 +134,6 @@ export const PostController = {
   updatePost,
   deletePost,
   getAllMyDrafts,
-  getALlUserLikedPost
+  getALlUserLikedPost,
+  viewVideo
 };

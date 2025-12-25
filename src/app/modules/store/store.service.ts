@@ -24,6 +24,7 @@ import { UserToken } from '../userToken';
 import { Notification } from '../notification/notification.mode';
 import { USER_ROLES } from '../../../enums/user';
 import { Favourite } from './favourite';
+import { updateUserAccessFeature } from '../../../util/updateUserAccessFeature';
 
 const getAllCollection = async (userId: string): Promise<any> => {
   const productCollections = await getAllProductsCollection(20);
@@ -84,7 +85,7 @@ const getProductsByCollectionHnadle = async (
       id: node.id,
       extendId: extendId,
       title: node.title,
-      handle: extendId, // handle is now extendId as per instructions
+      handle: node.handle, // handle is now extendId as per instructions
       availableForSale: node.availableForSale,
       image: firstImage,
       variantId: firstVariant.id || null,
@@ -318,6 +319,9 @@ const updateOrderStatus = async (
       { $inc: { numberOfToken: 1 } },
       { upsert: true }
     );
+
+    // New: Update user access feature after successful order
+    await updateUserAccessFeature(userId as any);
 
     return res.redirect(
       `${config.front_end_app_url}/success?orderId=${orderId}&userId=${userId}`

@@ -295,6 +295,79 @@ const uploadWorkoutPicture = async (user: any, image: string, caption: string, y
   return taskCalendar;
 };
 
+
+const deleteWorkoutPicture = async (userId: string, pictureId: string) => {
+  if (!userId || !pictureId) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid request');
+  }
+
+  const result = await TaskCalendar.updateMany(
+    {
+      user: userId,
+      "workoutPictures._id": pictureId
+    },
+    {
+      $pull: { workoutPictures: { _id: pictureId } }
+    }
+  );
+
+  if (result.modifiedCount === 0) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Workout picture not found');
+  }
+
+  return {
+    success: true,
+    deletedFromCalendars: result
+  };
+};
+
+const updateWorkoutPicture = async (
+  userId: string,
+  pictureId: string,
+  data: { image?: string; caption?: string }
+) => {
+  if (!userId || !pictureId) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid request');
+  }
+
+  if (!data.image && !data.caption) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Nothing to update');
+  }
+
+  const updateFields: any = {};
+
+  if (data.image) {
+    updateFields["workoutPictures.$[pic].image"] = data.image;
+  }
+
+  if (data.caption) {
+    updateFields["workoutPictures.$[pic].caption"] = data.caption;
+  }
+
+  const result = await TaskCalendar.updateMany(
+    {
+      user: userId,
+      "workoutPictures._id": pictureId
+    },
+    {
+      $set: updateFields
+    },
+    {
+      arrayFilters: [{ "pic._id": pictureId }]
+    }
+  );
+
+  if (result.modifiedCount === 0) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Workout picture not found');
+  }
+
+  return {
+    success: true,
+    updatedInCalendars: result.modifiedCount
+  };
+};
+
+
 const getWorkoutProgress = async (
   userId: string,
   query: Record<string, any>
@@ -323,8 +396,6 @@ const getWorkoutProgress = async (
   let endDate: Date | null = null;
 
   if (getBy === 'weekly') {
-    // dayjs: startOf('week') is Sunday, to endOf('week') is Saturday.
-    // For most use-cases, this is fine. If Monday is start, use: .startOf('week').add(1, 'day')
     startDate = dayjs().startOf('week').toDate();
     endDate = dayjs().endOf('week').toDate();
   } else if (getBy === 'monthly') {
@@ -371,20 +442,30 @@ const getWorkoutProgress = async (
 
   const targeted = filterDateArray(allTargeted);
   const completed = filterDateArray(allCompleted);
-  const pictures = filterPictureArray(allPictures);
+  let pictures = filterPictureArray(allPictures);
+
+  // Sort workoutPictures by date (descending: latest first)
+  pictures = pictures.sort((a, b) => {
+    const dateA = a.date instanceof Date ? a.date.getTime() : new Date(a.date).getTime();
+    const dateB = b.date instanceof Date ? b.date.getTime() : new Date(b.date).getTime();
+    return dateB - dateA;
+  });
 
   return {
     getBy,
-    targeted: targeted.length,   
-    completed: completed.length, 
-    pictures: pictures.length, 
+    targeted: targeted.length,
+    completed: completed.length,
+    pictures: pictures.length,
     workoutPictures: pictures
   };
 };
+
 
 export const TaskCalenderService = {
   createTaskCalendar,
   getAllTaskCalenders,
   uploadWorkoutPicture,
   getWorkoutProgress,
+  deleteWorkoutPicture,
+  updateWorkoutPicture
 };

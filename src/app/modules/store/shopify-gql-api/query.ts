@@ -400,5 +400,23 @@ export const GET_ALL_FAVORITE_PRODUCTS = `query getProductsByIds($ids: [ID!]!) {
     }
   }
 }
-
 `;
+
+
+export const FIND_SHOPIFY_CUSTOMER = `query GetCustomerWithOrders($email: String!) {
+  customers(first: 1, query: $email) {
+    edges {
+      node {
+        id
+        createdAt
+        orders(first: 1) {
+          edges {
+            node {
+              id
+            }
+          }
+        }
+      }
+    }
+  }
+}`;

@@ -63,13 +63,49 @@ const getWorkoutProgress = catchAsync(async (req: Request, res: Response) => {
 });
 
 
+const updateWorkoutPicture = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+  const pictureId = req.params.pictureId as string;
+  let image = getSingleFilePath(req.files, 'image');
+  let caption = req.body.caption;
+
+  const result = await TaskCalenderService.updateWorkoutPicture(
+    userId as string,
+    pictureId,
+    { image, caption }
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Workout picture updated successfully',
+    data: result,
+  });
+});
 
 
+
+
+const deleteWorkoutPicture = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+  const pictureId = req.params.pictureId as string;
+
+  const result = await TaskCalenderService.deleteWorkoutPicture(userId as string, pictureId);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Workout picture deleted successfully',
+    data: result,
+  });
+});
 
 export const TaskCalenderController = {
   createTaskCalender,
   getAllTaskCalenders,
   uploadWorkoutPicture,
-  getWorkoutProgress
+  getWorkoutProgress,
+  deleteWorkoutPicture,
+  updateWorkoutPicture
 };
 

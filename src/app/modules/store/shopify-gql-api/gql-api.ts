@@ -3,6 +3,7 @@ import config from '../../../../config';
 import {
   CREATE_ORDER,
   DELETE_ORDER,
+  FIND_SHOPIFY_CUSTOMER,
   GET_ALL_COLLECTION,
   GET_ALL_FAVORITE_PRODUCTS,
   GET_ALL_ORDERS,
@@ -69,4 +70,6 @@ export const getTotalOrder = async () =>  runShopifyQuery(adminClient, TOTAL_ORD
 export const getAllAdminOrder = async ($first: number, $after?: string) => runShopifyQuery(adminClient, GET_ALL_ORDERS, { first: $first, after: $after });
 export const getAllFavoriteProducts = async (ids: string[]) =>  runShopifyQuery(adminClient, GET_ALL_FAVORITE_PRODUCTS, { ids }
   );
+export const findShopifyCustomer = async (email: string) => runShopifyQuery(adminClient, FIND_SHOPIFY_CUSTOMER, { email });
+
 

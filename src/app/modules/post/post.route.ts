@@ -32,6 +32,13 @@ router
   );
 
 router
+  .route('/view/:videoId')
+  .post(
+    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
+    PostController.viewVideo // corrected controller action
+  );
+
+router
   .route('/:id')
   .patch(
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),

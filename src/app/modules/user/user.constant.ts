@@ -12,6 +12,8 @@ export const userSearchableField = ['name', 'email'];
 
 
 export enum ACTIVITY_TYPE {
+  POST = 'post',
+  VIDEO = 'video',
   PHOTO = 'photo',
   STORY = 'story',
   LIKE = 'like',

@@ -10,6 +10,7 @@ export interface IUser {
   confirm_password?: string;
   password: string;
   role: USER_ROLES;
+  canAccessFeature: boolean;
   status: 'active' | 'delete';
   verified: boolean;
   profile_mode: PROFILE_MODE;
