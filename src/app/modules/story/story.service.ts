@@ -67,14 +67,13 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
   const oneDayAgo = now.subtract(24, 'hour');
   const userIds = users.map((user: any) => user._id);
 
-  // Find all stories in last 24h (exclude own if provided)
+  // Find all stories in last 24h (now include own stories)
   const storyFilter: any = {
     creator: { $in: userIds },
     createdAt: { $gte: oneDayAgo.toDate(), $lte: now.toDate() },
   };
-  if (userId) {
-    storyFilter.creator.$ne = userId;
-  }
+
+  // Don't exclude self; everyone can see their own stories as well now
 
   const recentStories = await Story.find(storyFilter).lean();
 
@@ -154,20 +153,15 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
     pendingConnections.map(c => c.requestTo.toString())
   );
 
-  // Build priority logic
-  // Priority:
-  //   1: NetworkConnection.status === ACCEPTED (bidirectional, as in post.service.ts)
-  //   2: profile_mode = public && has at least one story
-  // (Those with no stories are skipped)
-
-  // Changed logic: Do NOT require "has unwatched" for unauth users or even watched stories, 
-  // always show if priority 2 matches, do not hide based on watchlist
-
+  // Build priority logic with support to show own stories, isOwner, and correct priority
   const data = users
     .map(user => {
       const uid = user._id.toString();
       const userStories = storiesByUser[uid] || [];
       if (userStories.length === 0) return null; // no stories
+
+      // Determine isOwner
+      const isOwner = userId && (uid === userId);
 
       // Find connection status between userId and uid
       let connectionStatus = 'not_requested';
@@ -179,12 +173,16 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
         connectionStatus = connectionMap.get(key) || 'not_requested';
       }
 
-      // Priority 1: Connected (accepted)
-      if (connectionStatus === NETWORK_CONNECTION_STATUS.ACCEPTED) {
+      // Priority 1: if isOwner, always priority 1
+      if (isOwner) {
+        priority = 1;
+        showStatus = "owner";
+      } else if (connectionStatus === NETWORK_CONNECTION_STATUS.ACCEPTED) {
+        // Priority 1 if accepted connection
         priority = 1;
         showStatus = "accepted";
       } else {
-        // Priority 2: profile public (now show always, even if all watched), i.e. just public & has stories
+        // Priority 2: profile public (show always, even if all watched), i.e. just public & has stories
         const profileMode = user.profile_mode || "";
         const isPublic = profileMode === "public" || !profileMode;
         if (isPublic) {
@@ -195,7 +193,7 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
 
       if (priority === 0) return null;
 
-      // Compute isWatched: true if all userStories are in watched for this user, otherwise false
+      // Compute isWatched: true if all userStories are watched for this user, otherwise false
       let isWatched = false;
       if (userId) {
         const watchedStoriesForUser = watchedMapByCreator[uid] || new Set();
@@ -209,11 +207,12 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
         storyCount: userStories.length,
         priority,
         connectionStatus: showStatus,
-        isWatched: isWatched
+        isWatched: isWatched,
+        isOwner: !!isOwner,
       };
     })
     .filter(Boolean)
-    // Only show priority 1 or 2 (accepted, public)
+    // Only show priority 1 or 2 (accepted, public, or owner)
     .filter(u => u!.priority === 1 || u!.priority === 2) as Array<any>;
 
   // Sort priorities (1 = top)
@@ -438,15 +437,11 @@ const getAllUserStory = async (
   const now = dayjs();
   const oneDayAgo = now.subtract(24, 'hour');
 
-  let findQuery: any = {
+  // Always fetch targetId's stories, regardless of userId
+  const findQuery: any = {
     creator: targetId,
     createdAt: { $gte: oneDayAgo.toDate(), $lte: now.toDate() }
   };
-
-  // Do not include own stories if userId is provided
-  if (userId) {
-    findQuery.creator = { $eq: targetId, $ne: userId };
-  }
 
   // Get all stories matching the query (no pagination yet, we'll group by user first)
   const storyQuery = new QueryBuilder(Story.find(findQuery), query)
@@ -505,6 +500,7 @@ const getAllUserStory = async (
           _id: story.creator._id,
           name: story.creator.name,
           image: story.creator.image,
+          isOwner: userId ? (story.creator._id.toString() === userId) : false
         },
         stories: [],
       });
@@ -529,7 +525,8 @@ const getAllUserStory = async (
       updatedAt: story.updatedAt,
       isWatchStory: !!isWatchStory,
       isLiked,
-      likeCount
+      likeCount,
+      isOwner: userId ? (story.creator._id.toString() === userId) : false
     });
   });
 
