@@ -18,6 +18,10 @@ router
   );
 
 router
+  .route('/delete')
+  .delete(auth(USER_ROLES.ADMIN, USER_ROLES.USER), UserController.deleteAccount)
+
+router
   .route('/')
   .get(auth(USER_ROLES.ADMIN, USER_ROLES.USER), UserController.getAllUsers)
   .post(

@@ -195,6 +195,21 @@ const toggleProfileUpdate = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+
+const deleteAccount = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+  const password = req.body?.password;
+  const result = await UserService.deleteAccount(password, userId);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'User account deleted successfully',
+    data: result,
+  });
+});
+
+
 export const UserController = {
   createUser,
   getUserProfile,
@@ -206,5 +221,6 @@ export const UserController = {
   UserStatistics,
   getStatistics,
   UserEarningStatistics,
-  toggleProfileUpdate
+  toggleProfileUpdate,
+  deleteAccount
 };

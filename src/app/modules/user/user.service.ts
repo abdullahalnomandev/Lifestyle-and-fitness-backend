@@ -507,6 +507,27 @@ const toggleProfileUpdate = async (userId: string) => {
   return user;
 }
 
+
+const deleteAccount = async (password: string, userId: string) => {
+  const user = await User.findById(userId).select('+password');
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Use User.isMatchPassword
+  const isMatch = await User.isMatchPassword(password, user.password);
+  if (!isMatch) {
+    throw new Error('Incorrect password');
+  }
+
+  const deletedUser = await User.findByIdAndDelete(userId);
+  if (!deletedUser) {
+    throw new Error('User not found');
+  }
+  return deletedUser;
+}
+
+
 export const UserService = {
   createUserToDB,
   getUserProfileFromDB,
@@ -518,6 +539,7 @@ export const UserService = {
   statistics,
   getUserStatistics,
   getAllEarningStatistics,
-  toggleProfileUpdate
+  toggleProfileUpdate,
+  deleteAccount
 
 };

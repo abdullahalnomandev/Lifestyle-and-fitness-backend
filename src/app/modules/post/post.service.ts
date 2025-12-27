@@ -71,12 +71,34 @@ const deletePost = async (userId: string, postId: string) => {
   return deletedPost;
 };
 
-const findById = async (postId: string) => {
+const findById = async (postId: string, userId?: string) => {
   const post = await Post.findById(postId).lean();
   if (!post) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Post not found');
   }
-  return post;
+
+  // Get comments count
+  const commentOfPost = await Comment.countDocuments({ post: postId }).lean();
+  // Get likes count
+  const likeOfPost = await Like.countDocuments({ post: postId }).lean();
+
+  // Count of replies (replay) for this post's comments
+  const repliesCount = await Comment.countDocuments({ post: postId }).lean();
+
+  // Get isOwner - compare creator with passed userId
+  let isOwner = false;
+  if (userId && post.creator) {
+    isOwner = post.creator.toString() === userId.toString();
+  }
+
+  // set fields like getAllPosts
+  return {
+    ...post,
+    commentOfPost,
+    likeOfPost,
+    repliesCount,
+    isOwner,
+  };
 };
 
 // const getAllPosts = async (query: Record<string, any>, userId: string) => {

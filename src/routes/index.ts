@@ -17,6 +17,8 @@ import { UserRoutes } from '../app/modules/user/user.route';
 import { UserTokenRoutes } from '../app/modules/userToken';
 import { StoreRoutes } from '../app/modules/store/store.route';
 import { NotificationRoutes } from '../app/modules/notification/notification.route';
+import { ConversationRoutes } from '../app/modules/conversation/conversation.route';
+import { MessageRoutes } from '../app/modules/message/message.route';
 
 const router = express.Router();
 
@@ -92,6 +94,14 @@ const apiRoutes = [
   {
     path: '/notification',
     route: NotificationRoutes,
+  },
+  {
+    path: '/conversation',
+    route: ConversationRoutes,
+  },
+  {
+    path: '/message',
+    route: MessageRoutes,
   }
 ];
 
