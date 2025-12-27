@@ -134,11 +134,22 @@ const getALlCommentsByPost = async (
 
   const likedCommentIds = new Set(likes.map((l: any) => l.comment.toString()));
 
-  // Add isCreator & isLiked fields
+  // Add reply count, isCreator & isLiked fields
+  // Prepare a map of commentId => reply count using aggregation for efficiency
+  const replies = await CommentReply.aggregate([
+    { $match: { comment: { $in: commentIds } } },
+    { $group: { _id: '$comment', count: { $sum: 1 } } }
+  ]);
+  const replyCountMap: { [key: string]: number } = {};
+  replies.forEach((r: any) => {
+    replyCountMap[r._id.toString()] = r.count;
+  });
+
   const dataWithStatus = result.map((comment: any) => ({
     ...comment.toObject(),
     isCreator: comment.creator._id.toString() === userId,
     isLiked: likedCommentIds.has(comment._id.toString()),
+    replyCount: replyCountMap[comment._id.toString()] || 0,
   }));
 
   return {
