@@ -2,7 +2,6 @@ import QueryBuilder from '../../builder/QueryBuilder';
 import { Message } from '../message/message.model';
 import { User } from '../user/user.model';
 import { Conversation } from './conversaiton.model';
-import { conversaionSearchableField } from './conversation.constant';
 
 const createConversation = async ({
     creator,
@@ -90,7 +89,7 @@ const getAllConversaions = async (query: Record<string, any>, userId: string) =>
             path: populateField,
             select: "_id name email image ", // add more if needed
             model: "User",
-            match: search ? { " name": { $regex: search, $options: "i" } } : {}, // search on user name
+            match: search ? { "name": { $regex: search, $options: "i" } } : {}, // search on user name
         })
         .populate({
             path: "lastMessage",
