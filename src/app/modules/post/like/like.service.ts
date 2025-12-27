@@ -3,6 +3,7 @@ import ApiError from '../../../../errors/ApiError';
 import QueryBuilder from '../../../builder/QueryBuilder';
 import { Like } from './like.model';
 import { Notification } from '../../notification/notification.mode';
+import { NotificationCount } from '../../notification/notificationCountModel';
 const createLike = async (postId: string, userId: string, fcmToken: string) => {
   // Create the like
   const like = await Like.create({ post: postId, user: userId });
@@ -12,7 +13,7 @@ const createLike = async (postId: string, userId: string, fcmToken: string) => {
   // Send notification to post creator if the liker is not the post owner
   const postCreator = (like.post as any)?.creator?.toString?.();
   if (postCreator && postCreator !== userId) {
-     Notification.create({
+    Notification.create({
       receiver: postCreator,
       sender: userId,
       title: 'New like on your post',
@@ -21,6 +22,17 @@ const createLike = async (postId: string, userId: string, fcmToken: string) => {
       deleteReferenceId: like._id,
       path: `/user/post/like/${postId}`,
     });
+
+    // Track notification count for the recipient (postCreator)
+    const user = postCreator;
+    const existingCount = await NotificationCount.findOne({ user });
+
+    if (existingCount) {
+      existingCount.count += 1;
+      await existingCount.save();
+    } else {
+      await NotificationCount.create({ user, count: 1 });
+    }
   }
 
   return like;

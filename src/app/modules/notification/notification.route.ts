@@ -19,4 +19,20 @@ router
     NotificationController.markAsSeen
   );
 
+router
+  .route('/count')
+  .get(
+    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
+    NotificationController.notificationUnreadCount
+  );
+
+router
+  .route('/update')
+  .get(
+    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
+    NotificationController.updateNotificationCount
+  );
+
+
+
 export const NotificationRoutes = router;

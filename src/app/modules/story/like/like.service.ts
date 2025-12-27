@@ -5,6 +5,7 @@ import { StoryLike } from './like.model';
 import { Story } from '../story.model';
 import { Notification } from '../../notification/notification.mode';
 import { IStory } from '../story.interface';
+import { NotificationCount } from '../../notification/notificationCountModel';
 
 const createLike = async (storyId: string, userId: string) => {
   // Create like
@@ -26,6 +27,17 @@ const createLike = async (storyId: string, userId: string) => {
       deleteReferenceId: like._id,
       path: `/user/post/like/${storyId}`,
     });
+
+    // Track notification count for the recipient (postCreator)
+    const user = postCreator;
+    const existingCount = await NotificationCount.findOne({ user });
+
+    if (existingCount) {
+      existingCount.count += 1;
+      await existingCount.save();
+    } else {
+      await NotificationCount.create({ user, count: 1 });
+    }
   }
 
   return like;

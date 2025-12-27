@@ -8,6 +8,7 @@ import { Notification } from '../../notification/notification.mode';
 import { ICommentReply } from './commentReply/commentReply.interface';
 import { CommentReply } from './commentReply/commentReply.modelt';
 import { CommentLike } from './commentLike/commentLike.modelt';
+import { NotificationCount } from '../../notification/notificationCountModel';
 
 // Create a new comment
 const createComment = async (payload: IComment,fcmToken:string) => {
@@ -29,7 +30,8 @@ const createComment = async (payload: IComment,fcmToken:string) => {
 
   // Send notification to post creator if the commenter is not the post owner
   if (post?.creator && post.creator.toString() !== payload.creator.toString()) {
-     Notification.create({
+    // Create notification
+    Notification.create({
       receiver: post.creator,
       sender: payload.creator,
       title: 'New comment on your post',
@@ -38,8 +40,18 @@ const createComment = async (payload: IComment,fcmToken:string) => {
       deleteReferenceId: comment._id,
       path: `/user/post/${post._id}`
     });
-  }
 
+    // Track notification count for the recipient (post.creator)
+    const user = post.creator;
+    const existingCount = await NotificationCount.findOne({ user });
+
+    if (existingCount) {
+      existingCount.count += 1;
+      await existingCount.save();
+    } else {
+      await NotificationCount.create({ user, count: 1 });
+    }
+  }
 
   return comment;
 };
@@ -167,6 +179,17 @@ const createCommentReply = async (payload: ICommentReply) => {
       deleteReferenceId: commentReply._id,
       path: `/user/comment/reply/${payload.comment}`,
     });
+
+    // Track notification count for the recipient (commentOwnerId)
+    const user = commentOwnerId;
+    NotificationCount.findOne({ user }).then(existingCount => {
+      if (existingCount) {
+        existingCount.count += 1;
+        existingCount.save();
+      } else {
+        NotificationCount.create({ user, count: 1 });
+      }
+    });
   }
 
   return commentReply;
@@ -237,7 +260,8 @@ const toggleCommentLike = async (id: string, userId: string) => {
 
   // Create notification to comment owner, but do not notify self-likes
   if (comment.creator.toString() !== userId.toString()) {
-     Notification.create({
+    // Create notification for comment like
+    Notification.create({
       receiver: comment.creator,
       sender: userId,
       title: 'Your comment was liked',
@@ -246,6 +270,17 @@ const toggleCommentLike = async (id: string, userId: string) => {
       deleteReferenceId: newLike._id,
       path: `/user/comment/like/${comment._id}`,
     });
+
+    // Track notification count for the recipient (comment.creator)
+    const user = comment.creator;
+    const existingCount = await NotificationCount.findOne({ user });
+
+    if (existingCount) {
+      existingCount.count += 1;
+      await existingCount.save();
+    } else {
+      await NotificationCount.create({ user, count: 1 });
+    }
   }
 
   return {

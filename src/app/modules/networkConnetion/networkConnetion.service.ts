@@ -9,6 +9,7 @@ import {
 } from './networkConnetion.constant';
 import { User } from '../user/user.model';
 import { Notification } from '../notification/notification.mode';
+import { NotificationCount } from '../notification/notificationCountModel';
 
 const sendRequestToDB = async (payload: INetworkConnection) => {
   if (!payload.requestFrom || !payload.requestTo) {
@@ -63,6 +64,18 @@ const sendRequestToDB = async (payload: INetworkConnection) => {
       path: `/user/network/request/${saved._id}`,
     });
 
+    // Track notification count for the recipient (payload.requestTo)
+    // Track notification count for the recipient (payload.requestTo)
+    const user = payload.requestTo;
+    const existingCount = await NotificationCount.findOne({ user });
+
+    if (existingCount) {
+      existingCount.count += 1;
+      await existingCount.save();
+    } else {
+      await NotificationCount.create({ user, count: 1 });
+    }
+
     return saved;
   }
 
@@ -70,7 +83,7 @@ const sendRequestToDB = async (payload: INetworkConnection) => {
   const connection = await NetworkConnection.create(payload);
 
   // Create notification when a new connection request is sent
-   Notification.create({
+  Notification.create({
     receiver: payload.requestTo,
     sender: payload.requestFrom,
     title: 'New connection request',
@@ -79,6 +92,17 @@ const sendRequestToDB = async (payload: INetworkConnection) => {
     deleteReferenceId: connection._id,
     path: `/user/network/request/${connection._id}`,
   });
+
+  // Track notification count for the recipient (payload.requestTo)
+  const user = payload.requestTo;
+  const existingCount = await NotificationCount.findOne({ user });
+
+  if (existingCount) {
+    existingCount.count += 1;
+    await existingCount.save();
+  } else {
+    await NotificationCount.create({ user, count: 1 });
+  }
 
   return connection;
 };
@@ -103,9 +127,9 @@ const updateStatusInDB = async (
   }
 
   connection.status = status;
-  if(connection.status === NETWORK_CONNECTION_STATUS.ACCEPTED){
+  if (connection.status === NETWORK_CONNECTION_STATUS.ACCEPTED) {
     // Create a notification to let the sender know their request was accepted
-    Notification.create({
+    await Notification.create({
       receiver: connection.requestFrom,
       sender: connection.requestTo,
       title: 'Connection request accepted',
@@ -114,12 +138,22 @@ const updateStatusInDB = async (
       deleteReferenceId: connection._id,
       path: `/user/network/request/${connection._id}`,
     });
+
+    // Update notification count for the sender (connection.requestFrom)
+    const user = connection.requestFrom;
+    const existingCount = await NotificationCount.findOne({ user });
+
+    if (existingCount) {
+      existingCount.count += 1;
+      await existingCount.save();
+    } else {
+      await NotificationCount.create({ user, count: 1 });
+    }
   }
   await connection.save();
 
   return connection;
 };
-
 
 const deleteFromDB = async (id: string) => {
   const deleted = await NetworkConnection.findByIdAndDelete(id);
@@ -128,7 +162,6 @@ const deleteFromDB = async (id: string) => {
   }
   return deleted;
 };
-
 
 const getAllFromDB = async (query: Record<string, any>, userId: string) => {
   // Extract searchTerm so we can search on User collection (refs), not on the raw ObjectId fields.
@@ -176,10 +209,7 @@ const getAllFromDB = async (query: Record<string, any>, userId: string) => {
     };
   }
 
-  const qb = new QueryBuilder(
-    NetworkConnection.find(baseFilter),
-    restQuery
-  )
+  const qb = new QueryBuilder(NetworkConnection.find(baseFilter), restQuery)
     .paginate()
     // .search is not used here because we are searching via the User collection above
     .fields()
@@ -190,7 +220,8 @@ const getAllFromDB = async (query: Record<string, any>, userId: string) => {
     .populate('requestTo', 'name image')
     .lean();
 
-  const data = rawData.map((item) => {
+  const data = rawData
+    .map(item => {
       const isRequester = item.requestFrom?._id?.toString() === userId;
       const isReceiver = item.requestTo?._id?.toString() === userId;
 
@@ -200,8 +231,7 @@ const getAllFromDB = async (query: Record<string, any>, userId: string) => {
 
       if (isReceiver && item.status === NETWORK_CONNECTION_STATUS.PENDING) {
         priority = 1;
-      }
-      else if (item.status === NETWORK_CONNECTION_STATUS.ACCEPTED) {
+      } else if (item.status === NETWORK_CONNECTION_STATUS.ACCEPTED) {
         priority = 2;
       }
 
@@ -214,17 +244,19 @@ const getAllFromDB = async (query: Record<string, any>, userId: string) => {
         priority,
       };
     })
-    .filter(item => !(item.status === NETWORK_CONNECTION_STATUS.PENDING && item.priority === 3))
+    .filter(
+      item =>
+        !(
+          item.status === NETWORK_CONNECTION_STATUS.PENDING &&
+          item.priority === 3
+        )
+    )
     .sort((a, b) => a.priority - b.priority)
     .map(({ priority, ...rest }) => rest);
 
   const pagination = await qb.getPaginationInfo();
   return { pagination, data };
 };
-
-
-
-
 
 const getByIdFromDB = async (id: string) => {
   const doc = await NetworkConnection.findById(id)
@@ -236,7 +268,6 @@ const getByIdFromDB = async (id: string) => {
   }
   return doc;
 };
-
 
 const cancel = async (payload: INetworkConnection) => {
   if (!payload.requestFrom || !payload.requestTo) {
@@ -257,7 +288,7 @@ const cancel = async (payload: INetworkConnection) => {
   const existing = await NetworkConnection.findOne({
     requestFrom: payload.requestFrom,
     requestTo: payload.requestTo,
-    status: NETWORK_CONNECTION_STATUS.PENDING
+    status: NETWORK_CONNECTION_STATUS.PENDING,
   });
 
   if (!existing) {
@@ -270,7 +301,6 @@ const cancel = async (payload: INetworkConnection) => {
 
   return { message: 'Connection request cancelled .' };
 };
-
 
 const disconnect = async (networkId: string, userId: string) => {
   // Find the connection by id
@@ -310,7 +340,6 @@ const disconnect = async (networkId: string, userId: string) => {
   return { message: 'connection disconnected!' };
 };
 
-
 const getUserAllNetworks = async (
   requestedUserId: string,
   myUserId: string,
@@ -322,14 +351,13 @@ const getUserAllNetworks = async (
     NetworkConnection.find({
       $or: [
         { requestFrom: requestedUserId, requestTo: { $ne: requestedUserId } },
-        { requestTo: requestedUserId, requestFrom: { $ne: requestedUserId } }
+        { requestTo: requestedUserId, requestFrom: { $ne: requestedUserId } },
       ],
-      status: NETWORK_CONNECTION_STATUS.ACCEPTED
-    })
-      .populate([
-        { path: 'requestFrom', select: 'name image' },
-        { path: 'requestTo', select: 'name image' }
-      ]),
+      status: NETWORK_CONNECTION_STATUS.ACCEPTED,
+    }).populate([
+      { path: 'requestFrom', select: 'name image' },
+      { path: 'requestTo', select: 'name image' },
+    ]),
     query
   )
     .paginate()
@@ -345,7 +373,10 @@ const getUserAllNetworks = async (
     connections.map(async (conn: any) => {
       // Get the other user in the connection
       let otherUser;
-      if (conn.requestFrom && conn.requestFrom._id.toString() === requestedUserId) {
+      if (
+        conn.requestFrom &&
+        conn.requestFrom._id.toString() === requestedUserId
+      ) {
         otherUser = conn.requestTo;
       } else {
         otherUser = conn.requestFrom;
@@ -356,9 +387,9 @@ const getUserAllNetworks = async (
         isConnectedToMe = !!(await NetworkConnection.exists({
           $or: [
             { requestFrom: myUserId, requestTo: otherUser._id },
-            { requestFrom: otherUser._id, requestTo: myUserId }
+            { requestFrom: otherUser._id, requestTo: myUserId },
           ],
-          status: NETWORK_CONNECTION_STATUS.ACCEPTED
+          status: NETWORK_CONNECTION_STATUS.ACCEPTED,
         }));
       }
 
@@ -380,9 +411,6 @@ const getUserAllNetworks = async (
   };
 };
 
-
-
-
 export const NetworkConnectionService = {
   sendRequestToDB,
   updateStatusInDB,
@@ -391,5 +419,5 @@ export const NetworkConnectionService = {
   getByIdFromDB,
   cancel,
   disconnect,
-  getUserAllNetworks
+  getUserAllNetworks,
 };

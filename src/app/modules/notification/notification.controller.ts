@@ -30,7 +30,33 @@ const markAsSeen = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const notificationUnreadCount = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+  const result = await NotificationService.notificationUnreadCount(userId);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Unread notification count retrieved successfully',
+    data: result,
+  });
+});
+
+const updateNotificationCount = catchAsync(async (req: Request, res: Response) => {
+  // This is a placeholder implementation. You should implement the logic here as per your application's requirements.
+  const result = await NotificationService.updateNotificationCount(req?.user?.id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Notification count updated successfully',
+    data: result,
+  });
+});
+
 export const NotificationController = {
   getMyNotifications,
   markAsSeen,
+  notificationUnreadCount,
+  updateNotificationCount,
 };

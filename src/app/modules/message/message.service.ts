@@ -57,7 +57,7 @@ const getAllMessages = async (
         'name image _id',
       model: 'User',
     })
-    .sort({ createdAt: 1 });
+    .sort({ createdAt: -1 });
 
   const pagination = await result.getPaginationInfo();
 

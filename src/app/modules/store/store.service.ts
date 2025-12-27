@@ -25,6 +25,7 @@ import { Notification } from '../notification/notification.mode';
 import { USER_ROLES } from '../../../enums/user';
 import { Favourite } from './favourite';
 import { updateUserAccessFeature } from '../../../util/updateUserAccessFeature';
+import { NotificationCount } from '../notification/notificationCountModel';
 
 const getAllCollection = async (userId: string): Promise<any> => {
   const productCollections = await getAllProductsCollection(20);
@@ -300,9 +301,20 @@ const updateOrderStatus = async (
       path: `/store/order-history/${orderId}`,
     });
 
+    // Track notification count for the recipient (userId)
+    const user = userId;
+    const existingCount = await NotificationCount.findOne({ user });
+
+    if (existingCount) {
+      existingCount.count += 1;
+      await existingCount.save();
+    } else {
+      await NotificationCount.create({ user, count: 1 });
+    }
+
     // Optionally notify admins as well (use their own receiver ids, no duplicate for user)
     const adminUsers = await User.find({ role: USER_ROLES.ADMIN });
-    adminUsers.forEach(admin => {
+    for (const admin of adminUsers) {
       Notification.create({
         receiver: admin._id,
         title: 'New Order Placed',
@@ -310,7 +322,18 @@ const updateOrderStatus = async (
         refId: admin._id,
         path: `/store/order-history/${orderId}`,
       });
-    });
+
+      // Track notification count for each admin
+      const adminUser = admin._id;
+      const adminExistingCount = await NotificationCount.findOne({ user: adminUser });
+
+      if (adminExistingCount) {
+        adminExistingCount.count += 1;
+        await adminExistingCount.save();
+      } else {
+        await NotificationCount.create({ user: adminUser, count: 1 });
+      }
+    }
 
     await makeOrderPaid(orderGid);
 
