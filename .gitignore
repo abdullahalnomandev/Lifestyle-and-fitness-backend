@@ -3,4 +3,4 @@ node_modules
 fcmServiceAccountKey.json
 
 /winston
-/uploads
+# /uploads
