@@ -123,7 +123,7 @@ const getUserProfileFromDB = async (user: JwtPayload): Promise<any> => {
   const { id } = user;
 
   // Only unselect the arrays but still need to count their lengths, so will fetch their counts
-  const isExistUser = await User.findById(id, '-status -role -authorization')
+  const isExistUser = await User.findById(id, '-status -authorization')
     .lean()
     .populate('preferences');
 

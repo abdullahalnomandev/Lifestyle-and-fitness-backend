@@ -517,7 +517,7 @@ const getAllOrders = async (query?: { [key: string]: any }) => {
 
   // Fetch all orders (or enough to cover the requested page)
   const $first = page * limit; // fetch enough orders to cover the requested page
-  const ordersResult = await getAllAdminOrder($first);
+  const ordersResult = await getAllAdminOrder($first, undefined);
   const edges = ordersResult?.orders?.edges ?? [];
 
   // Flatten orders data
