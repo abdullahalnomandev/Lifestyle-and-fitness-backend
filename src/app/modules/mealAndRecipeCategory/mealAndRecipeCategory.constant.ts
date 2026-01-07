@@ -1,5 +1,4 @@
 export const mealAndRecipeCategoryFilterableFields = [
-  'searchTerm',
   'id',
   'title',
 ];

@@ -31,7 +31,8 @@ const getAllMealAndRecipeCategory = catchAsync(
     const result =
       await MealAndRecipeCategoryService.getAllMealAndRecipeCategory(
         filters,
-        paginationOptions
+        paginationOptions,
+        req?.user?.role
       );
 
     sendResponse<IMealAndRecipeCategory[]>(res, {

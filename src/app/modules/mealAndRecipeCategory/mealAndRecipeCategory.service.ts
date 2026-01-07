@@ -15,35 +15,54 @@ const createMealAndRecipeCategory = async (
 
 const getAllMealAndRecipeCategory = async (
   filters: any,
-  query: Record<string, unknown>
+  query: Record<string, unknown>,
+  role: string
 ) => {
-  let queryField = query;
-  queryField = { ...query, active: true };
-  const mealAndRecipeCategoryQuery = new QueryBuilder(
-    MealAndRecipeCategory.find(),
-    queryField
-  )
+  let queryField = { ...query };
+
+  // Only filter by active: true if role is not admin or superadmin
+  const isAdmin = role === 'admin' || role === 'super_admin';
+  if (!isAdmin) {
+    queryField = { ...queryField, active: true };
+  }
+
+  // Ensure searchTerm from filters (query params/body) makes it to QueryBuilder
+  let searchTerm =
+    (filters && typeof filters === 'object' && filters.searchTerm)
+      ? filters.searchTerm
+      : (query && typeof query === 'object' && query.searchTerm)
+        ? query.searchTerm
+        : undefined;
+
+  // Always set searchTerm (if provided) so QueryBuilder sees it
+  if (searchTerm !== undefined && searchTerm !== null && searchTerm !== '') {
+    queryField = { ...queryField, searchTerm };
+  } else {
+    // Remove previous searchTerm if any
+    if ('searchTerm' in queryField) {
+      const { searchTerm, ...rest } = queryField;
+      queryField = rest;
+    }
+  }
+
+  // Use QueryBuilder
+  const qb = new QueryBuilder(MealAndRecipeCategory.find(), queryField)
     .search(mealAndRecipeCategorySearchableFields)
     .filter()
     .sort()
     .paginate()
     .fields();
 
-  const result = await mealAndRecipeCategoryQuery.modelQuery;
-  const pagination = await mealAndRecipeCategoryQuery.getPaginationInfo();
+  const result = await qb.modelQuery.lean();
+  const pagination = await qb.getPaginationInfo();
 
-  // Get meal count for each category
+  // Attach mealCount for each category
   const categoriesWithMealCount = await Promise.all(
-    result.map(async item => {
+    result.map(async (item: any) => {
       const mealCount = await Meal.countDocuments({
-        //@ts-ignore
         mealCategory: item?._id,
       });
-      return {
-        //@ts-ignore
-        ...item.toObject(),
-        mealCount,
-      };
+      return { ...item, mealCount };
     })
   );
 

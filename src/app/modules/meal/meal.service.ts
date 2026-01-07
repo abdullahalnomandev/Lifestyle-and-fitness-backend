@@ -25,11 +25,14 @@ const createMeal = async (payload: IMeal): Promise<IMeal | null> => {
 const getAllMeals = async (
   filters: any,
   query: Record<string, unknown>,
-  categoryId: string,
+  // categoryId: string,
   userId: string
 ) => {
+  // If categoryId is provided (not null/undefined/empty string), search by category. Otherwise, get all.
+  // const filterByCategory = categoryId ? { mealCategory: categoryId } : {};
+
   const mealQuery = new QueryBuilder(
-    Meal.find({ mealCategory: categoryId }),
+    Meal.find({}),
     query
   )
     .search(mealSearchableFields)
@@ -38,7 +41,7 @@ const getAllMeals = async (
     .paginate()
     .fields();
 
-  const result = await mealQuery.modelQuery.lean();
+  const result = await mealQuery.modelQuery.lean().populate('mealCategory', 'title');
   const pagination = await mealQuery.getPaginationInfo();
 
   // Get all item IDs for batch lookup

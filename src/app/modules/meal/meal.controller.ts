@@ -32,14 +32,14 @@ const createMeal = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAllMeals = catchAsync(async (req: Request, res: Response) => {
-  const { categoryId } = req.params;
+  // const { categoryId } = req.params;
   const filters = pick(req.query, mealFilterableFields);
   const paginationOptions = pick(req.query, paginationFields);
 
   const result = await MealService.getAllMeals(
     filters,
     paginationOptions,
-    categoryId,
+    // categoryId,
     req.user?.id
   );
 

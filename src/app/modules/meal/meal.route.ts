@@ -15,6 +15,11 @@ router.post(
   MealController.createMeal
 );
 router.get(
+  '/all',
+  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER),
+  MealController.getAllMeals
+);
+router.get(
   '/:id',
   auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER),
   MealController.getSingleMeal
@@ -31,10 +36,6 @@ router.delete(
   auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER),
   MealController.deleteMeal
 );
-router.get(
-  '/all/:categoryId',
-  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER),
-  MealController.getAllMeals
-);
+
 
 export const MealRoutes = router;

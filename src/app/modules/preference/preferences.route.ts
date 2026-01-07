@@ -24,8 +24,8 @@ router
     .route('/:id')
     .get(PreferenceController.getById)
     .patch(
-        // auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
-        auth(USER_ROLES.USER),
+        auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
+        // auth(USER_ROLES.USER),
         validateRequest(PreferenceValidation.updateZodSchema),
         PreferenceController.update
     )
