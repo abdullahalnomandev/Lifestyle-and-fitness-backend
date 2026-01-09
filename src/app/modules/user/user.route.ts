@@ -19,11 +19,11 @@ router
 
 router
   .route('/delete')
-  .delete(auth(USER_ROLES.ADMIN, USER_ROLES.USER,USER_ROLES.SUPER_ADMIN)), UserController.deleteAccount)
+  .delete(auth(USER_ROLES.ADMIN, USER_ROLES.USER,USER_ROLES.SUPER_ADMIN), UserController.deleteAccount)
 
 router
   .route('/')
-  .get(auth(USER_ROLES.ADMIN, USER_ROLES.USER,USER_ROLES.SUPER_ADMIN)), UserController.getAllUsers)
+  .get(auth(USER_ROLES.ADMIN, USER_ROLES.USER,USER_ROLES.SUPER_ADMIN), UserController.getAllUsers)
   .post(
     validateRequest(UserValidation.createUserZodSchema),
     UserController.createUser
