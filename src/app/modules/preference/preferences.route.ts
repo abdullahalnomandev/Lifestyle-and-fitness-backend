@@ -31,7 +31,7 @@ router
     )
     .delete(
         // auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN)
-        auth(USER_ROLES.USER)
+        auth(USER_ROLES.USER,USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN)
         , PreferenceController.remove);
 
 export const PreferenceRoutes = router;
