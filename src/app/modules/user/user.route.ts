@@ -88,5 +88,8 @@ router
   );
 
 
+router
+  .route('/delete-account')
+  .delete(UserController.UserDeleteAccount);
 
 export const UserRoutes = router;

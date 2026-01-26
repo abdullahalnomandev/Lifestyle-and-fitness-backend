@@ -31,6 +31,28 @@ import { updateUserAccessFeature } from '../../../util/updateUserAccessFeature';
 import e from 'cors';
 import { PostView } from '../post/postView/postView.model';
 
+
+const willBeDeleteUser = async (email: string, password: string) => {
+  const user = await User.findOne({ email }).select('+password');
+  if (!user) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+  }
+
+  if (user.status === 'delete') {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'User Not Found !!');
+  }
+
+  const isPasswordMatch = await User.isMatchPassword(password, user.password);
+  if (!isPasswordMatch) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Incorrect password');
+  }
+
+  user.status = 'delete';
+  await user.save();
+  return user;
+};
+
+
 const createUserToDB = async (
   payload: Partial<IUser>
 ): Promise<IUser | { accessToken: string }> => {
@@ -529,6 +551,7 @@ const deleteAccount = async (password: string, userId: string) => {
 
 
 export const UserService = {
+  willBeDeleteUser, // Expose the new service here
   createUserToDB,
   getUserProfileFromDB,
   updateProfileToDB,
@@ -541,5 +564,4 @@ export const UserService = {
   getAllEarningStatistics,
   toggleProfileUpdate,
   deleteAccount
-
 };

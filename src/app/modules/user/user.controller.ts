@@ -195,7 +195,7 @@ const toggleProfileUpdate = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-
+// Default account deletion for logged-in user via req.user + password (kept old version)
 const deleteAccount = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user?.id;
   const password = req.body?.password;
@@ -209,6 +209,19 @@ const deleteAccount = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// New controller for deleting account using email and password for body-based deletion
+const UserDeleteAccount = catchAsync(async (req: Request, res: Response) => {
+  const email = req.body?.email;
+  const password = req.body?.password;
+  const result = await UserService.willBeDeleteUser(email, password);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'User account deleted successfully by email',
+    data: result,
+  });
+});
 
 export const UserController = {
   createUser,
@@ -222,5 +235,6 @@ export const UserController = {
   getStatistics,
   UserEarningStatistics,
   toggleProfileUpdate,
-  deleteAccount
+  deleteAccount,
+  UserDeleteAccount, // Export new delete by email controller
 };
