@@ -34,4 +34,11 @@ export default {
     storefront_access_token: process.env.SHOPIFY_STORE_FRONT_ACCESS_TOKEN,
     admin_access_token: process.env.SHOPIFY_ADMIN_ACCESS_TOKEN,
   },
+  aws:{
+    access_key_id: process.env.AWS_ACCESS_KEY_ID,
+    secret_access_key: process.env.AWS_SECRET_ACCESS_KEY,
+    region: process.env.AWS_REGION,
+    s3_bucket: process.env.S3_BUCKET_NAME
+  }
 };
+
