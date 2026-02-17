@@ -190,7 +190,7 @@ const fileUploadHandler = () => {
         file.mimetype === 'image/jpg'  ||
         file.mimetype === 'image/webp' ||
         file.mimetype === 'image/gif'  ||
-        file.mimetype === 'image/bmp'
+        file.mimetype === 'image/bmp' 
       ) {
         cb(null, true);
       } else {

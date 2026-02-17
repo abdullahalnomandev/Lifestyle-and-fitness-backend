@@ -3,6 +3,7 @@ import express, { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import globalErrorHandler from './app/middlewares/globalErrorHandler';
 import router from './routes';
+import bodyParser from 'body-parser'
 import { Morgan } from './shared/morgen';
 import handleStripeWebhook from './app/modules/stripe/handleStripeWebhook';
 const app = express();
@@ -19,8 +20,9 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-
+app.use(express.urlencoded({limit: "50mb", extended: true, parameterLimit: 50000}))
+app.use(bodyParser.json({limit:'50mb'})); 
+app.use(bodyParser.urlencoded({extended:true, limit:'50mb'})); 
 //file retrieve
 app.use(express.static('uploads'));
 
