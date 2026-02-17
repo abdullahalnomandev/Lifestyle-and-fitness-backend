@@ -187,14 +187,17 @@ const fileUploadHandler = () => {
       if (
         file.mimetype === 'image/jpeg' ||
         file.mimetype === 'image/png' ||
-        file.mimetype === 'image/jpg'
+        file.mimetype === 'image/jpg'  ||
+        file.mimetype === 'image/webp' ||
+        file.mimetype === 'image/gif'  ||
+        file.mimetype === 'image/bmp'
       ) {
         cb(null, true);
       } else {
         cb(
           new ApiError(
             StatusCodes.BAD_REQUEST,
-            'Only .jpeg, .png, .jpg file supported'
+            '  Only webp, gif, bmp, .jpeg, .png, .jpg file supported'
           )
         );
       }
