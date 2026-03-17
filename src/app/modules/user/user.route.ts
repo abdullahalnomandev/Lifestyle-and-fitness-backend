@@ -5,6 +5,7 @@ import fileUploadHandler from '../../middlewares/fileUploadHandler';
 import validateRequest from '../../middlewares/validateRequest';
 import { UserController } from './user.controller';
 import { UserValidation } from './user.validation';
+import { BlockRoutes } from './block/block.route';
 const router = express.Router();
 
 router
@@ -91,5 +92,9 @@ router
 router
   .route('/delete-account')
   .delete(UserController.UserDeleteAccount);
+
+  // User Blocks
+
+router.use('/blocks',BlockRoutes)
 
 export const UserRoutes = router;

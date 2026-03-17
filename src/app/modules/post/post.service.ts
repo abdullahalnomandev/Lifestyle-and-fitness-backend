@@ -16,6 +16,7 @@ import { Preference } from '../preference/preferences.model';
 import { Save } from './save';
 import { PROFILE_MODE } from '../user/user.constant';
 import { PostView } from './postView/postView.model';
+import { UserBlock } from '../user/block/block.model';
 
 //Create a new club
 const createPost = async (payload: IPOST) => {
@@ -73,7 +74,13 @@ const deletePost = async (userId: string, postId: string) => {
 
 const findById = async (postId: string, userId?: string) => {
   const post = await Post.findById(postId).lean();
-  if (!post) {
+  const isBlocked = await UserBlock.findOne({
+    $or: [
+      { blocker: post?.creator, blocked: userId }, // post creator blocked current user
+      { blocker: userId, blocked: post?.creator }, // current user blocked post creator
+    ],
+  });
+  if (!post || isBlocked) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Post not found');
   }
 
@@ -272,6 +279,22 @@ const getAllPosts = async (query: Record<string, any>, userId: string) => {
     ])
   );
 
+  // Load all blocks where the current user is involved
+  const blockedMap = new Set(
+    (
+      await UserBlock.find({
+        $or: [
+          { blocker: userId }, // current user blocked someone
+          { blocked: userId }, // someone blocked current user
+        ],
+      }).lean()
+    ).map(b => {
+      // Add both sides of the block to a Set for fast lookup
+      if (b.blocker.toString() === userId) return b.blocked.toString();
+      return b.blocker.toString();
+    })
+  );
+
   // -------------------------------
   // BUILD RESPONSE (NO DB CALLS)
   // -------------------------------
@@ -281,6 +304,10 @@ const getAllPosts = async (query: Record<string, any>, userId: string) => {
       const creatorId = post.creator?._id?.toString();
 
       if (!creatorId) {
+        return null;
+      }
+
+      if (blockedMap.has(creatorId)) {
         return null;
       }
 

@@ -50,7 +50,7 @@ const getAllPosts = catchAsync(async (req: Request, res: Response) => {
 
 const getSinglePost = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const result = await PostService.findById(id);
+  const result = await PostService.findById(id, req.user?.id);
 
   sendResponse(res, {
     success: true,

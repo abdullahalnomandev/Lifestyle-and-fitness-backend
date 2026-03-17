@@ -5,6 +5,7 @@ import fileUploadHandler from '../../middlewares/fileUploadHandler';
 import { LikeRoutes } from './like';
 import { SaveRoutes } from './save';
 import { PostController } from './post.controller';
+import { ReportRoutes } from './report/report.route';
 
 const router = express.Router();
 
@@ -62,6 +63,8 @@ router.use('/:postId/likes', LikeRoutes);
 // Save routes - nested under posts
 router.use('/:postId/saves', SaveRoutes);
 
+// Report routes - nested under posts
+router.use('/reports', ReportRoutes);
 
 
 export const PostRoutes = router;
