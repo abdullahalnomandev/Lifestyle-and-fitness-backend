@@ -19,7 +19,7 @@ const transporter = nodemailer.createTransport({
 const sendEmail = async (values: ISendEmail) => {
   try {
     const info = await transporter.sendMail({
-      from: `"Gym & Fitness" ${config.email.from}`,
+      from: `"Road to 1%" ${config.email.from}`,
       to: values.to,
       subject: values.subject,
       html: values.html,
