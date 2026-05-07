@@ -19,6 +19,7 @@ import { StoreRoutes } from '../app/modules/store/store.route';
 import { NotificationRoutes } from '../app/modules/notification/notification.route';
 import { ConversationRoutes } from '../app/modules/conversation/conversation.route';
 import { MessageRoutes } from '../app/modules/message/message.route';
+import { CalendarRoutes } from '../app/modules/calendar/calender.route';
 
 const router = express.Router();
 
@@ -102,6 +103,10 @@ const apiRoutes = [
   {
     path: '/message',
     route: MessageRoutes,
+  },
+  {
+    path: '/calendar',
+    route: CalendarRoutes,
   }
 ];
 
