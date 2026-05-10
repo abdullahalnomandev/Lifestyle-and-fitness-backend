@@ -33,7 +33,7 @@ const getAllMeals = async (
 
   const mealQuery = new QueryBuilder(
     Meal.find({}),
-    query
+    {...filters, ...query}
   )
     .search(mealSearchableFields)
     .filter()
