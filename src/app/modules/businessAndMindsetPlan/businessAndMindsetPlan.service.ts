@@ -41,7 +41,7 @@ const deleteFromDB = async (id: string) => {
 
 const getAllFromDB = async (userId: string, query: Record<string, any>) => {
   let queryField = query;
-  queryField = { ...query, fields: '-description -active', active: true };
+  queryField = { ...query, fields: '-active', active: true };
   const qb = new QueryBuilder(BusinessAndMindsetPlan.find(), queryField)
     .paginate()
     .search(['title'])
@@ -73,7 +73,11 @@ const getAllFromDB = async (userId: string, query: Record<string, any>) => {
 };
 
 const getByIdFromDB = async (id: string, userId: string, role?: string) => {
-  const doc = await BusinessAndMindsetPlan.findById(id);
+  const [doc, existingRef, totalToken] = await Promise.all([
+    BusinessAndMindsetPlan.findById(id).lean(),
+    UserTokenRef.exists({ ref: id, user: userId }).lean(),
+    UserToken.findOne({ user: userId }),
+  ]);
 
   if (!doc) {
     throw new ApiError(
@@ -83,15 +87,9 @@ const getByIdFromDB = async (id: string, userId: string, role?: string) => {
   }
 
   // If admin or super admin, skip token logic and just return details
-  if (role ===  USER_ROLES.ADMIN || role === USER_ROLES.SUPER_ADMIN) {
+  if (role === USER_ROLES.ADMIN || role === USER_ROLES.SUPER_ADMIN) {
     return doc;
   }
-
-  // Otherwise apply token & reference logic
-  const [existingRef, totalToken] = await Promise.all([
-    UserTokenRef.exists({ ref: id, user: userId }).lean(),
-    UserToken.findOne({ user: userId }),
-  ]);
 
   if ((totalToken?.numberOfToken ?? 0) < 1 && !existingRef) {
     throw new ApiError(
