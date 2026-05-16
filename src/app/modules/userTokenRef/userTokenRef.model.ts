@@ -6,19 +6,19 @@ const UserTokenRefSchema = new Schema<IUserTokenRef, IUserTokenRefModel>(
     ref: {
       type: Schema.Types.ObjectId,
       required: true,
-      unique: true,
     },
     user: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      required: false, // User is optional as per the interface
+      required: false,
     },
   },
   {
     timestamps: true,
   }
 );
-UserTokenRefSchema.index({ ref: 1, user: 1 });
+
+UserTokenRefSchema.index({ ref: 1, user: 1 }, { unique: true });
 
 export const UserTokenRef = model<IUserTokenRef, IUserTokenRefModel>(
   'UserTokenRef',
