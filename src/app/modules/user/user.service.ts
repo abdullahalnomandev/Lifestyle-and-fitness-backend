@@ -177,6 +177,13 @@ const updateProfileToDB = async (
   const { id } = user;
   const isExistUser = await User.isExistUserById(id);
 
+  if (payload.user_name) {
+    const isExistUserName = await User.findOne({ user_name: payload.user_name });
+    if (isExistUserName) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'User name already exists!');
+    }
+  }
+
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }

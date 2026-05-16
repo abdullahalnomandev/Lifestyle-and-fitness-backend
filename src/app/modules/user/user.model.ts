@@ -18,6 +18,12 @@ const userSchema = new Schema<IUser, UserModel>(
       lowercase: true,
       sparse: true,
     },
+    user_name: {
+      type: String,
+      unique: true,
+      lowercase: true,
+      sparse: true,
+    },
     canAccessFeature: {
       type: Boolean,
       default: false,

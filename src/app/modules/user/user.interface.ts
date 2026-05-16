@@ -9,6 +9,7 @@ export interface IUser {
   mobile?: string;
   confirm_password?: string;
   password: string;
+  user_name?: string;
   role: USER_ROLES;
   canAccessFeature: boolean;
   status: 'active' | 'delete';
