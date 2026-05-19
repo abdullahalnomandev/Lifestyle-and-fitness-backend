@@ -20,7 +20,6 @@ const userSchema = new Schema<IUser, UserModel>(
     },
     user_name: {
       type: String,
-      unique: true,
       lowercase: true,
       sparse: true,
     },
@@ -133,7 +132,6 @@ userSchema.statics.isMatchPassword = async function (
 
 userSchema.pre('save', async function (next) {
   const user = this as IUser;
-
   // Only check for duplicate on create, not on update
   if (this.isNew) {
     if (user.email) {
@@ -151,6 +149,9 @@ userSchema.pre('save', async function (next) {
         );
       }
     }
+  }
+  if (!this.user_name) {
+    this.user_name = this.email?.split('@')[0];
   }
 
   if (!this.isModified('password')) return next();
