@@ -66,6 +66,7 @@ const createUserToDB = async (
   let isValid = false;
   let authorization: { oneTimeCode: string; expireAt: Date } | null = null;
 
+  payload.user_name = payload.email?.split('@')[0];
   //GOOGLE
   if (
     payload.auth_provider === USER_AUTH_PROVIDER.GOOGLE &&

@@ -10,7 +10,7 @@ const router = express.Router();
 
 router
   .route('/profile')
-  .get(auth(USER_ROLES.ADMIN, USER_ROLES.USER,USER_ROLES.SUPER_ADMIN), UserController.getUserProfile)
+  .get(auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.SUPER_ADMIN), UserController.getUserProfile)
   .patch(
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
     fileUploadHandler(),
@@ -20,13 +20,12 @@ router
 
 router
   .route('/delete')
-  .delete(auth(USER_ROLES.ADMIN, USER_ROLES.USER,USER_ROLES.SUPER_ADMIN), UserController.deleteAccount)
+  .delete(auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.SUPER_ADMIN), UserController.deleteAccount)
 
 router
   .route('/')
-  .get(auth(USER_ROLES.ADMIN, USER_ROLES.USER,USER_ROLES.SUPER_ADMIN), UserController.getAllUsers)
+  .get(auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.SUPER_ADMIN), UserController.getAllUsers)
   .post(
-    validateRequest(UserValidation.createUserZodSchema),
     UserController.createUser
   );
 
@@ -93,8 +92,8 @@ router
   .route('/delete-account')
   .delete(UserController.UserDeleteAccount);
 
-  // User Blocks
+// User Blocks
 
-router.use('/blocks',BlockRoutes)
+router.use('/blocks', BlockRoutes)
 
 export const UserRoutes = router;

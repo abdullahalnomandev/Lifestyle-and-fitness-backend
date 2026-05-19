@@ -148,9 +148,6 @@ userSchema.pre('save', async function (next) {
       }
     }
   }
-  if (!this.user_name && this.email) {
-    this.user_name = this.email.split('@')[0];
-  }
 
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(
