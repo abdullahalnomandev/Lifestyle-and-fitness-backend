@@ -100,7 +100,7 @@ const createUserToDB = async (
   //LOCAL
   else {
     if (payload.auth_provider === 'local' && payload.password) {
-       isValid = true;
+      isValid = true;
 
       const otp = generateOTP();
       authorization = {
@@ -382,7 +382,7 @@ const getUserActivityFromDB = async (
 const getUserStatistics = async (year: number, userId: string) => {
   // Set months for the whole year
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  
+
   // Set the start and end of the year for querying
   const startDate = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
   const endDate = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
@@ -447,9 +447,9 @@ const statistics = async () => {
   // Compute totalOrder
   const totalOrder =
     typeof totalOrderResp === "object" &&
-    totalOrderResp &&
-    totalOrderResp.ordersCount &&
-    typeof totalOrderResp.ordersCount.count === "number"
+      totalOrderResp &&
+      totalOrderResp.ordersCount &&
+      typeof totalOrderResp.ordersCount.count === "number"
       ? totalOrderResp.ordersCount.count
       : 0;
 
@@ -476,7 +476,7 @@ const getAllEarningStatistics = async (year: number) => {
   const startDate = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
   const endDate = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
 
-  const MAX_ORDER_FETCH = 250; 
+  const MAX_ORDER_FETCH = 250;
   const ordersResult = await getAllAdminOrder(MAX_ORDER_FETCH);
   const edges = ordersResult?.orders?.edges ?? [];
 

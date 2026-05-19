@@ -12,7 +12,7 @@ export const updateUserAccessFeature = async (userId: ObjectId): Promise<boolean
     if (user.email) {
       const { customers } = await findShopifyCustomer(user.email);
       if (customers && customers.edges.length > 0) {
-       const userInfo = await User.findByIdAndUpdate(user._id, { canAccessFeature: true }, { new: true });
+        const userInfo = await User.findByIdAndUpdate(user._id, { canAccessFeature: true }, { new: true });
         return true;
       }
     }
