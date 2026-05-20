@@ -5,10 +5,10 @@ export enum USER_AUTH_PROVIDER {
 }
 
 export enum PROFILE_MODE {
-    PRIVATE = 'private',
-    PUBLIC = 'public'
+  PRIVATE = 'private',
+  PUBLIC = 'public'
 }
-export const userSearchableField = ['name', 'email'];
+export const userSearchableField = ['name', 'email', 'user_name'];
 
 
 export enum ACTIVITY_TYPE {
