@@ -4,7 +4,10 @@ import QueryBuilder from '../../builder/QueryBuilder';
 import { IStory } from './story.interface';
 import { Story } from './story.model';
 import dayjs from 'dayjs';
-import { IStoryWatch, UserWatchStory } from './userwatchStory/userwatchStory.model';
+import {
+  IStoryWatch,
+  UserWatchStory,
+} from './userwatchStory/userwatchStory.model';
 import { User } from '../user/user.model';
 import { NetworkConnection } from '../networkConnetion/networkConnetion.model';
 import { NETWORK_CONNECTION_STATUS } from '../networkConnetion/networkConnetion.constant';
@@ -40,7 +43,7 @@ const deleteStory = async (userId: string | undefined, storyId: string) => {
   if (!deleted) {
     throw new ApiError(
       StatusCodes.NOT_FOUND,
-      'Story not found or you do not have permission to delete this story'
+      'Story not found or you do not have permission to delete this story',
     );
   }
 
@@ -93,7 +96,7 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
   if (userId) {
     const watched = await UserWatchStory.find({
       user: userId,
-      story: { $in: allStoryIds }
+      story: { $in: allStoryIds },
     }).lean();
     watchedStoryIds = new Set(watched.map(s => s.story.toString()));
 
@@ -104,7 +107,8 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
       // Find which creator this story belongs to by looking it up in storiesByUser
       Object.entries(storiesByUser).forEach(([creatorId, stories]) => {
         if (stories.some(s => s._id.toString() === storyId)) {
-          if (!watchedMapByCreator[creatorId]) watchedMapByCreator[creatorId] = new Set();
+          if (!watchedMapByCreator[creatorId])
+            watchedMapByCreator[creatorId] = new Set();
           watchedMapByCreator[creatorId].add(storyId);
         }
       });
@@ -119,24 +123,19 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
 
   // Parallel batch queries (mimic @post.service.ts)
   if (userId) {
-    [
-      connections,
-      pendingConnections,
-      creators
-    ] = await Promise.all([
+    [connections, pendingConnections, creators] = await Promise.all([
       NetworkConnection.find({
         $or: [
           { requestFrom: userId, requestTo: { $in: creatorIds } },
-          { requestFrom: { $in: creatorIds }, requestTo: userId }
-        ]
+          { requestFrom: { $in: creatorIds }, requestTo: userId },
+        ],
       }).lean(),
       NetworkConnection.find({
         requestFrom: userId,
         requestTo: { $in: creatorIds },
-        status: NETWORK_CONNECTION_STATUS.PENDING
+        status: NETWORK_CONNECTION_STATUS.PENDING,
       }).lean(),
-      User.find({ _id: { $in: creatorIds } })
-        .lean()
+      User.find({ _id: { $in: creatorIds } }).lean(),
     ]);
   }
 
@@ -150,7 +149,7 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
   });
 
   const pendingMap = new Set(
-    pendingConnections.map(c => c.requestTo.toString())
+    pendingConnections.map(c => c.requestTo.toString()),
   );
 
   // Build priority logic with support to show own stories, isOwner, and correct priority
@@ -161,7 +160,7 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
       if (userStories.length === 0) return null; // no stories
 
       // Determine isOwner
-      const isOwner = userId && (uid === userId);
+      const isOwner = userId && uid === userId;
 
       // Find connection status between userId and uid
       let connectionStatus = 'not_requested';
@@ -176,18 +175,18 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
       // Priority 1: if isOwner, always priority 1
       if (isOwner) {
         priority = 1;
-        showStatus = "owner";
+        showStatus = 'owner';
       } else if (connectionStatus === NETWORK_CONNECTION_STATUS.ACCEPTED) {
         // Priority 1 if accepted connection
         priority = 1;
-        showStatus = "accepted";
+        showStatus = 'accepted';
       } else {
         // Priority 2: profile public (show always, even if all watched), i.e. just public & has stories
-        const profileMode = user.profile_mode || "";
-        const isPublic = profileMode === "public" || !profileMode;
+        const profileMode = user.profile_mode || '';
+        const isPublic = profileMode === 'public' || !profileMode;
         if (isPublic) {
           priority = 2;
-          showStatus = "public";
+          showStatus = 'public';
         }
       }
 
@@ -197,7 +196,11 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
       let isWatched = false;
       if (userId) {
         const watchedStoriesForUser = watchedMapByCreator[uid] || new Set();
-        isWatched = userStories.length > 0 && userStories.every(story => watchedStoriesForUser.has(story._id.toString()));
+        isWatched =
+          userStories.length > 0 &&
+          userStories.every(story =>
+            watchedStoriesForUser.has(story._id.toString()),
+          );
       }
 
       return {
@@ -425,13 +428,10 @@ const getAllStories = async (query: Record<string, any>, userId?: string) => {
 //   };
 // };
 
-
-
-
 const getAllUserStory = async (
   query: Record<string, any>,
   targetId: string,
-  userId?: string
+  userId?: string,
 ) => {
   // Only include stories created in the last 24 hours and hide any with createdAt > now
   const now = dayjs();
@@ -440,7 +440,7 @@ const getAllUserStory = async (
   // Always fetch targetId's stories, regardless of userId
   const findQuery: any = {
     creator: targetId,
-    createdAt: { $gte: oneDayAgo.toDate(), $lte: now.toDate() }
+    createdAt: { $gte: oneDayAgo.toDate(), $lte: now.toDate() },
   };
 
   // Get all stories matching the query (no pagination yet, we'll group by user first)
@@ -461,7 +461,7 @@ const getAllUserStory = async (
   if (userId) {
     const watchDocs = await UserWatchStory.find({
       story: { $in: storyIds },
-      user: userId
+      user: userId,
     }).lean();
     watchDocs.forEach((w: any) => {
       watchStatuses[w.story.toString()] = w;
@@ -472,20 +472,20 @@ const getAllUserStory = async (
   const [likeCounts, userLikes] = await Promise.all([
     StoryLike.aggregate([
       { $match: { story: { $in: storyIds } } },
-      { $group: { _id: '$story', count: { $sum: 1 } } }
+      { $group: { _id: '$story', count: { $sum: 1 } } },
     ]),
-    userId ? StoryLike.find({
-      story: { $in: storyIds },
-      user: userId
-    }).lean() : []
+    userId
+      ? StoryLike.find({
+          story: { $in: storyIds },
+          user: userId,
+        }).lean()
+      : [],
   ]);
 
   const likeCountMap = Object.fromEntries(
-    likeCounts.map(l => [l._id.toString(), l.count])
+    likeCounts.map(l => [l._id.toString(), l.count]),
   );
-  const userLikedSet = new Set(
-    userLikes.map((l: any) => l.story.toString())
-  );
+  const userLikedSet = new Set(userLikes.map((l: any) => l.story.toString()));
 
   // Group stories by creator (user)
   const storiesByUser = new Map();
@@ -500,7 +500,7 @@ const getAllUserStory = async (
           _id: story.creator._id,
           name: story.creator.name,
           image: story.creator.image,
-          isOwner: userId ? (story.creator._id.toString() === userId) : false
+          isOwner: userId ? story.creator._id.toString() === userId : false,
         },
         stories: [],
       });
@@ -524,9 +524,14 @@ const getAllUserStory = async (
       createdAt: story.createdAt,
       updatedAt: story.updatedAt,
       isWatchStory: !!isWatchStory,
+      text_x: story.text_x,
+      text_y: story.text_y,
+      text_scale: story.text_scale,
+      text_rotation: story.text_rotation,
+      text_color: story.text_color,
       isLiked,
       likeCount,
-      isOwner: userId ? (story.creator._id.toString() === userId) : false
+      isOwner: userId ? story.creator._id.toString() === userId : false,
     });
   });
 
@@ -535,8 +540,9 @@ const getAllUserStory = async (
 
   // Sort stories within each user group by createdAt (newest first)
   groupedData.forEach((group: any) => {
-    group.stories.sort((a: any, b: any) =>
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    group.stories.sort(
+      (a: any, b: any) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   });
 
@@ -559,27 +565,26 @@ const getAllUserStory = async (
   };
 };
 
-
 const watchStory = async (storyId: string, userId: string | undefined) => {
   if (!userId) {
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'Unauthorized');
   }
-  let watchHistory = await UserWatchStory.findOne({ story: storyId, user: userId }) as IStoryWatch;
+  let watchHistory = (await UserWatchStory.findOne({
+    story: storyId,
+    user: userId,
+  })) as IStoryWatch;
 
   if (!watchHistory) {
     watchHistory = await UserWatchStory.create({
       user: userId,
-      story: storyId
+      story: storyId,
     });
   }
 
   return {
-    data: watchHistory
+    data: watchHistory,
   };
 };
-
-
-
 
 export const StoryService = {
   createStory,
@@ -588,6 +593,5 @@ export const StoryService = {
   findById,
   getAllStories,
   getAllUserStory,
-  watchStory
+  watchStory,
 };
-
