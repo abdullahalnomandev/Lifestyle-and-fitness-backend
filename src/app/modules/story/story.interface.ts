@@ -7,6 +7,11 @@ export type IStory = {
   caption?: string;
   image?: string;
   media?: string;
+  text_x?: number;
+  text_y?: number;
+  text_scale?: number;
+  text_rotation?: number;
+  text_color?: string;
   createdAt?: Date;
   updatedAt?: Date;
 };

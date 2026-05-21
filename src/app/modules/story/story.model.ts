@@ -23,6 +23,26 @@ const storySchema = new Schema<IStory, IStoryModel>(
       type: String,
       trim: true,
     },
+    text_x: {
+      type: Number,
+      default: 0,
+    },
+    text_y: {
+      type: Number,
+      default: 0,
+    },
+    text_scale: {
+      type: Number,
+      default: 1,
+    },
+    text_rotation: {
+      type: Number,
+      default: 0,
+    },
+    text_color: {
+      type: String,
+      default: '#000000',
+    },
     createdAt: {
       type: Date,
       default: Date.now,
