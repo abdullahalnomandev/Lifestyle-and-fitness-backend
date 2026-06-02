@@ -70,6 +70,11 @@ const createUserToDB = async (
   if (!payload.user_name) {
     payload.user_name = payload.email?.split('@')[0];
   }
+
+  const isExist = await User.exists({ user_name: payload.user_name }).lean();
+  if (isExist) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'User name already exists!');
+  }
   //GOOGLE
   if (
     payload.auth_provider === USER_AUTH_PROVIDER.GOOGLE &&
