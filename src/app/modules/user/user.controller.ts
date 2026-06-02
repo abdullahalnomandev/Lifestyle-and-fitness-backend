@@ -29,15 +29,23 @@ const createUser = catchAsync(
       google_id_token,
       auth_provider,
     }, userId);
-    const responseData = auth_provider === 'local' ? undefined : result;
+
+    // sendResponse(res, {
+    //   success: true,
+    //   statusCode: StatusCodes.OK,
+    //   message:
+    //     auth_provider === 'local'
+    //       ? 'User created successfully. Please verify your email.'
+    //       : 'User created successfully',
+    //   ...(responseData && { data: responseData }), // Only include data if not local
+    // });
+
+
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message:
-        auth_provider === 'local'
-          ? 'User created successfully. Please verify your email.'
-          : 'User created successfully',
-      ...(responseData && { data: responseData }), // Only include data if not local
+      message: 'Users created successfully',
+      data: result,
     });
   }
 );
