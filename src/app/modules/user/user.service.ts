@@ -26,11 +26,13 @@ import { USER_POST_TYPE } from '../post/post.constant';
 import { Save } from '../post/save';
 import { NETWORK_CONNECTION_STATUS } from '../networkConnetion/networkConnetion.constant';
 import { Story } from '../story/story.model';
-import { getAllAdminOrder, getTotalOrder } from '../store/shopify-gql-api/gql-api';
+import {
+  getAllAdminOrder,
+  getTotalOrder,
+} from '../store/shopify-gql-api/gql-api';
 import { updateUserAccessFeature } from '../../../util/updateUserAccessFeature';
 import e from 'cors';
 import { PostView } from '../post/postView/postView.model';
-
 
 const willBeDeleteUser = async (email: string, password: string) => {
   const user = await User.findOne({ email }).select('+password');
@@ -52,21 +54,22 @@ const willBeDeleteUser = async (email: string, password: string) => {
   return user;
 };
 
-
 const createUserToDB = async (
-  payload: Partial<IUser>
+  payload: Partial<IUser>,
 ): Promise<IUser | { accessToken: string }> => {
   if (!payload.password && !payload.google_id_token && !payload.mobile) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      'Password or Google or Mobile is required'
+      'Password or Google or Mobile is required',
     );
   }
 
   let isValid = false;
   let authorization: { oneTimeCode: string; expireAt: Date } | null = null;
 
-  payload.user_name = payload.email?.split('@')[0];
+  if (!payload.user_name) {
+    payload.user_name = payload.email?.split('@')[0];
+  }
   //GOOGLE
   if (
     payload.auth_provider === USER_AUTH_PROVIDER.GOOGLE &&
@@ -85,7 +88,7 @@ const createUserToDB = async (
       const createToken = jwtHelper.createToken(
         { id: isExist._id, role: isExist.role, email: isExist.email },
         config.jwt.jwt_secret as Secret,
-        config.jwt.jwt_expire_in as string
+        config.jwt.jwt_expire_in as string,
       );
       return { accessToken: createToken };
     }
@@ -119,7 +122,7 @@ const createUserToDB = async (
     if (!authorization?.oneTimeCode || !createUser?.email) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        'Failed to generate OTP or missing email'
+        'Failed to generate OTP or missing email',
       );
     }
     const createAccountTemplate = emailTemplate.createAccount({
@@ -136,7 +139,7 @@ const createUserToDB = async (
     const createToken = jwtHelper.createToken(
       { id: createUser._id, role: createUser.role, email: createUser.email },
       config.jwt.jwt_secret as Secret,
-      config.jwt.jwt_expire_in as string
+      config.jwt.jwt_expire_in as string,
     );
     return { accessToken: createToken };
   }
@@ -173,13 +176,15 @@ const getUserProfileFromDB = async (user: JwtPayload): Promise<any> => {
 
 const updateProfileToDB = async (
   user: JwtPayload,
-  payload: Partial<IUser>
+  payload: Partial<IUser>,
 ): Promise<Partial<IUser | null> | undefined> => {
   const { id } = user;
   const isExistUser = await User.isExistUserById(id);
 
   if (payload.user_name) {
-    const isExistUserName = await User.findOne({ user_name: payload.user_name });
+    const isExistUserName = await User.findOne({
+      user_name: payload.user_name,
+    });
     if (isExistUserName) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'User name already exists!');
     }
@@ -200,7 +205,7 @@ const updateProfileToDB = async (
   const updatedUser = await User.findByIdAndUpdate(
     id,
     { $set: payload },
-    { new: true }
+    { new: true },
   ).lean();
 
   if (updatedUser) {
@@ -255,15 +260,14 @@ export const unfollowUser = async (userId: string, targetId: string) => {
   });
 };
 
-
 const getUserProfileByIdFromDB = async (
   userId: string,
-  requestUserId: string
+  requestUserId: string,
 ): Promise<any> => {
   // Only unselect the arrays but still need to count their lengths, so will fetch their counts
   const isExistUser = await User.findById(
     requestUserId,
-    '-status -role -authorization'
+    '-status -role -authorization',
   )
     .lean()
     .populate('preferences');
@@ -299,11 +303,10 @@ const getUserProfileByIdFromDB = async (
   };
 };
 
-
 const getUserActivityFromDB = async (
   requestUserId: string,
   myUserId: string,
-  query: Record<string, any>
+  query: Record<string, any>,
 ): Promise<{ data: any[]; pagination: any }> => {
   let activityQuery: any;
   let includeVideoCount = false;
@@ -379,10 +382,22 @@ const getUserActivityFromDB = async (
 
 // DASHBOARD ANALYTICS
 
-
 const getUserStatistics = async (year: number, userId: string) => {
   // Set months for the whole year
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
 
   // Set the start and end of the year for querying
   const startDate = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
@@ -394,14 +409,14 @@ const getUserStatistics = async (year: number, userId: string) => {
       $match: {
         createdAt: { $gte: startDate, $lte: endDate },
         verified: true,
-      }
+      },
     },
     {
       $group: {
-        _id: { month: { $month: "$createdAt" } },
+        _id: { month: { $month: '$createdAt' } },
         count: { $sum: 1 },
-      }
-    }
+      },
+    },
   ]);
 
   // Map month (1-based) to user count for quick lookup
@@ -435,8 +450,6 @@ const getUserStatistics = async (year: number, userId: string) => {
   };
 };
 
-
-
 const statistics = async () => {
   // Get total counts and total revenue from Shopify
   const [totalUser, totalReview, totalOrderResp] = await Promise.all([
@@ -447,10 +460,10 @@ const statistics = async () => {
 
   // Compute totalOrder
   const totalOrder =
-    typeof totalOrderResp === "object" &&
-      totalOrderResp &&
-      totalOrderResp.ordersCount &&
-      typeof totalOrderResp.ordersCount.count === "number"
+    typeof totalOrderResp === 'object' &&
+    totalOrderResp &&
+    totalOrderResp.ordersCount &&
+    typeof totalOrderResp.ordersCount.count === 'number'
       ? totalOrderResp.ordersCount.count
       : 0;
 
@@ -458,7 +471,7 @@ const statistics = async () => {
   const edges = ordersResult?.orders?.edges ?? [];
   const totalRevenue = edges.reduce((sum: number, orderEdge: any) => {
     const amount = parseFloat(
-      orderEdge.node?.totalPriceSet?.shopMoney?.amount ?? "0"
+      orderEdge.node?.totalPriceSet?.shopMoney?.amount ?? '0',
     );
     return sum + (isNaN(amount) ? 0 : amount);
   }, 0);
@@ -470,9 +483,21 @@ const statistics = async () => {
   };
 };
 
-
 const getAllEarningStatistics = async (year: number) => {
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
 
   const startDate = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
   const endDate = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
@@ -491,7 +516,7 @@ const getAllEarningStatistics = async (year: number) => {
   ordersInYear.forEach((orderEdge: any) => {
     const order = orderEdge.node;
     const createdAt = new Date(order.createdAt);
-    const amount = parseFloat(order.totalPriceSet?.shopMoney?.amount ?? "0");
+    const amount = parseFloat(order.totalPriceSet?.shopMoney?.amount ?? '0');
     const monthIndex = createdAt.getUTCMonth();
     if (!isNaN(amount)) {
       earningsByMonth[monthIndex] += amount;
@@ -513,7 +538,10 @@ const getAllEarningStatistics = async (year: number) => {
   }
 
   // Calculate total earning for the period returned
-  const totalEarning = earningStats.reduce((acc, item) => acc + item.earning, 0);
+  const totalEarning = earningStats.reduce(
+    (acc, item) => acc + item.earning,
+    0,
+  );
 
   return {
     year,
@@ -521,7 +549,6 @@ const getAllEarningStatistics = async (year: number) => {
     earningStats,
   };
 };
-
 
 const toggleProfileUpdate = async (userId: string) => {
   // Find the user by ID
@@ -535,8 +562,7 @@ const toggleProfileUpdate = async (userId: string) => {
   await user.save();
 
   return user;
-}
-
+};
 
 const deleteAccount = async (password: string, userId: string) => {
   const user = await User.findById(userId).select('+password');
@@ -555,8 +581,7 @@ const deleteAccount = async (password: string, userId: string) => {
     throw new Error('User not found');
   }
   return deletedUser;
-}
-
+};
 
 export const UserService = {
   willBeDeleteUser, // Expose the new service here
@@ -571,5 +596,5 @@ export const UserService = {
   getUserStatistics,
   getAllEarningStatistics,
   toggleProfileUpdate,
-  deleteAccount
+  deleteAccount,
 };
