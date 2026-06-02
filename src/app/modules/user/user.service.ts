@@ -69,6 +69,7 @@ const createUserToDB = async (
   let authorization: { oneTimeCode: string; expireAt: Date } | null = null;
 
   payload.user_name = payload.user_name || payload.email?.split('@')[0];
+  console.log(payload)
 
   const isExist = await User.exists({ user_name: payload.user_name ,_id: { $ne: userId } }).lean();
   if (isExist) {

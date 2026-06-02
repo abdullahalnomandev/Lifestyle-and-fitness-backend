@@ -17,6 +17,7 @@ const createUser = catchAsync(
       confirm_password,
       google_id_token,
       auth_provider,
+      user_name,
     } = req.body;
 
     const userId = req.user?.id;
@@ -28,6 +29,7 @@ const createUser = catchAsync(
       confirm_password,
       google_id_token,
       auth_provider,
+      user_name,
     }, userId);
 
     // sendResponse(res, {
@@ -44,8 +46,8 @@ const createUser = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: 'Users created successfully',
-      data: result,
+      message: 'User created successfully',
+      // data: result,
     });
   }
 );
