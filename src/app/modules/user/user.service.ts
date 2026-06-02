@@ -199,12 +199,11 @@ const updateProfileToDB = async (
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
-  if (payload.email) {
-    delete payload.email;
-  }
-
-  if (payload.image === isExistUser.image) {
-    unlinkFile(payload.image as string);
+  if (payload.user_name) {
+    const isExistUserName = await User.findOne({ user_name: payload.user_name, _id: { $ne: id } }).lean();
+    if (isExistUserName) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'User name already exists!');
+    }
   }
 
   const updatedUser = await User.findByIdAndUpdate(
