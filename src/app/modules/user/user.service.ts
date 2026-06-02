@@ -56,6 +56,7 @@ const willBeDeleteUser = async (email: string, password: string) => {
 
 const createUserToDB = async (
   payload: Partial<IUser>,
+  userId: string,
 ): Promise<IUser | { accessToken: string }> => {
   if (!payload.password && !payload.google_id_token && !payload.mobile) {
     throw new ApiError(
@@ -67,11 +68,9 @@ const createUserToDB = async (
   let isValid = false;
   let authorization: { oneTimeCode: string; expireAt: Date } | null = null;
 
-  if (!payload.user_name) {
-    payload.user_name = payload.email?.split('@')[0];
-  }
+  payload.user_name = payload.user_name || payload.email?.split('@')[0];
 
-  const isExist = await User.exists({ user_name: payload.user_name }).lean();
+  const isExist = await User.exists({ user_name: payload.user_name ,_id: { $ne: userId } }).lean();
   if (isExist) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'User name already exists!');
   }
@@ -200,7 +199,10 @@ const updateProfileToDB = async (
   }
 
   if (payload.user_name) {
-    const isExistUserName = await User.findOne({ user_name: payload.user_name, _id: { $ne: id } }).lean();
+    const isExistUserName = await User.findOne({
+      user_name: payload.user_name,
+      _id: { $ne: id },
+    }).lean();
     if (isExistUserName) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'User name already exists!');
     }

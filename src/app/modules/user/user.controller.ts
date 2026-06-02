@@ -19,6 +19,7 @@ const createUser = catchAsync(
       auth_provider,
     } = req.body;
 
+    const userId = req.user?.id;
     const result = await UserService.createUserToDB({
       name,
       mobile,
@@ -27,7 +28,7 @@ const createUser = catchAsync(
       confirm_password,
       google_id_token,
       auth_provider,
-    });
+    }, userId);
     const responseData = auth_provider === 'local' ? undefined : result;
     sendResponse(res, {
       success: true,
