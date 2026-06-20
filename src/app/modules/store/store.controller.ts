@@ -70,7 +70,8 @@ const updateOrderStatus = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const status = req.query?.status as 'success' | 'cancel';
   const userId = req.query?.userId as string;
-  await StoreService.updateOrderStatus(res, id, status, userId);
+  const sessionId = req.query?.sessionId as string;
+  await StoreService.updateOrderStatus(res, status, userId,sessionId);
 });
 
 

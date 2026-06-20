@@ -49,7 +49,7 @@ const getAllCollection = async (userId: string): Promise<any> => {
 
 const getProductsByCollectionHnadle = async (
   handle: string,
-  userId: string
+  userId: string,
 ): Promise<any> => {
   let productCollections = null;
 
@@ -69,7 +69,10 @@ const getProductsByCollectionHnadle = async (
 
   let favouriteExtendIds: string[] = [];
   if (userId) {
-    const favourites = await Favourite.find({ user: userId, handle: { $in: extendIds } }).lean();
+    const favourites = await Favourite.find({
+      user: userId,
+      handle: { $in: extendIds },
+    }).lean();
     favouriteExtendIds = favourites.map((fav: any) => fav.handle);
   }
 
@@ -134,7 +137,7 @@ const getProductById = async (handle: string): Promise<any> => {
 const createCheckout = async (
   lineItems: CheckoutRequest,
   userId: string,
-  rootUrl: string
+  rootUrl: string,
 ): Promise<{ data: { paymentUrl: string } | null }> => {
   if (!lineItems || lineItems.lineItems.length === 0) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Cart is empty');
@@ -224,37 +227,6 @@ const createCheckout = async (
     });
   }
 
-  const data = {
-    order: {
-      currency: lineItems.lineItems[0].currencyCode || 'GBP',
-      email: isUserExist?.email,
-      poNumber: isUserExist?.shipping_address?.contact_number,
-      lineItems: cleanLineItems,
-      transactions: [
-        {
-          kind: 'SALE',
-          status: 'PENDING',
-          amountSet: {
-            shopMoney: {
-              amount: Number(totalAmount.toFixed(2)),
-              currencyCode: lineItems.lineItems[0].currencyCode || 'GBP',
-            },
-          },
-        },
-      ],
-      shippingAddress: {
-        firstName: isUserExist?.name?.split(' ')?.[0] || '',
-        lastName: isUserExist?.name?.split(' ')?.slice(1).join(' ') || '',
-        address1: isUserExist?.shipping_address?.address,
-        city: isUserExist?.shipping_address?.city,
-        country: isUserExist?.shipping_address?.country,
-        // countryCode: isUserExist?.shipping_address?.country,
-        zip: isUserExist?.shipping_address?.zip,
-      },
-    },
-  };
-  const product = await createProductCheckout(data);
-
   const checkoutSession = await stripe.checkout.sessions.create({
     payment_method_types: ['card'],
     mode: 'payment',
@@ -263,14 +235,18 @@ const createCheckout = async (
     metadata: {
       userId: userId,
       productTitles: displayTitles.join(', '),
+      totalAmount: totalAmount.toFixed(2),
+      lineItems: JSON.stringify(cleanLineItems),
     },
 
-    success_url: `${rootUrl}/api/v1/store/webhook/${String(
-      product?.orderCreate?.order?.name
-    ).replace(/^#/, '')}?status=success&userId=${userId}`,
-    cancel_url: `${rootUrl}/api/v1/store/webhook/${String(
-      product?.orderCreate?.order?.name
-    ).replace(/^#/, '')}?status=cancel&userId=${userId}`,
+    // success_url: `${rootUrl}/api/v1/store/webhook/${String(
+    //   product?.orderCreate?.order?.name
+    // ).replace(/^#/, '')}?status=success&userId=${userId}`,
+    // cancel_url: `${rootUrl}/api/v1/store/webhook/${String(
+    //   product?.orderCreate?.order?.name
+    // ).replace(/^#/, '')}?status=cancel&userId=${userId}`,
+    success_url: `${rootUrl}/api/v1/store/webhook?status=success&userId=${userId}&sessionId={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${rootUrl}/api/v1/store/webhook?status=cancel&userId=${userId}`,
   });
 
   return {
@@ -282,15 +258,61 @@ const createCheckout = async (
 
 const updateOrderStatus = async (
   res: Response,
-  orderId: string,
   status: 'success' | 'cancel',
-  userId: string
+  userId: string,
+  sessionId?: string,
 ) => {
   // Fetch the Shopify order details to get the GID
-  const result = await getOrderDetails(orderId);
-  const orderGid = result?.orders?.edges?.[0]?.node?.id;
-
   if (status === 'success') {
+    const isUserExist = await User.findById(userId);
+
+    const session = await stripe.checkout.sessions.retrieve(
+      sessionId as string,
+    );
+
+    if (!session.metadata?.lineItems) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Checkout metadata not found',
+      );
+    }
+    const cleanLineItems = JSON.parse(session.metadata?.lineItems || '[]');
+    // CREATE ORDER
+    const data = {
+      order: {
+        currency: session.currency?.toUpperCase() || 'GBP',
+        // currency: cleanLineItems[0].currencyCode || 'GBP',
+        email: isUserExist?.email,
+        poNumber: isUserExist?.shipping_address?.contact_number,
+        lineItems: cleanLineItems,
+        transactions: [
+          {
+            kind: 'SALE',
+            status: 'PENDING',
+            amountSet: {
+              shopMoney: {
+                amount: Number(session.metadata?.totalAmount || 0),
+                currencyCode: cleanLineItems[0].currencyCode || 'GBP',
+              },
+            },
+          },
+        ],
+        shippingAddress: {
+          firstName: isUserExist?.name?.split(' ')?.[0] || '',
+          lastName: isUserExist?.name?.split(' ')?.slice(1).join(' ') || '',
+          address1: isUserExist?.shipping_address?.address,
+          city: isUserExist?.shipping_address?.city,
+          country: isUserExist?.shipping_address?.country,
+          // countryCode: isUserExist?.shipping_address?.country,
+          zip: isUserExist?.shipping_address?.zip,
+        },
+      },
+    };
+    const product = await createProductCheckout(data);
+    const orderId = product?.orderCreate?.order?.name?.replace(/^#/, '');
+    const orderGid = product?.orderCreate?.order?.id;
+    await makeOrderPaid(orderGid);
+
     // Create notification for user
     Notification.create({
       receiver: userId,
@@ -325,7 +347,9 @@ const updateOrderStatus = async (
 
       // Track notification count for each admin
       const adminUser = admin._id;
-      const adminExistingCount = await NotificationCount.findOne({ user: adminUser });
+      const adminExistingCount = await NotificationCount.findOne({
+        user: adminUser,
+      });
 
       if (adminExistingCount) {
         adminExistingCount.count += 1;
@@ -335,30 +359,22 @@ const updateOrderStatus = async (
       }
     }
 
-    await makeOrderPaid(orderGid);
-
     await UserToken.updateOne(
       { user: userId },
       { $inc: { numberOfToken: 1 } },
-      { upsert: true }
+      { upsert: true },
     );
 
     // New: Update user access feature after successful order
     await updateUserAccessFeature(userId as any);
 
     return res.redirect(
-      `${config.front_end_app_url}/success?orderId=${orderId}&userId=${userId}`
+      `${config.front_end_app_url}/success?orderId=${orderId}&userId=${userId}`,
     );
   }
 
   if (status === 'cancel') {
-    if (orderGid) {
-      await orderDelete(orderGid);
-    }
-
-    return res.redirect(
-      `${config.front_end_app_url}/cancel?orderId=${orderId}&userId=${userId}`
-    );
+    return res.redirect(`${config.front_end_app_url}/cancel?userId=${userId}`);
   }
 };
 
@@ -402,7 +418,7 @@ const orderHistory = async (userId: string) => {
         : null;
     })
     .filter((entry): entry is { id: string; node: any } =>
-      Boolean(entry && entry.id)
+      Boolean(entry && entry.id),
     );
 
   if (customers.length === 0) {
@@ -416,7 +432,7 @@ const orderHistory = async (userId: string) => {
 
   // Step 3: Fetch Shopify orders in parallel
   const ordersResults = await Promise.all(
-    customers.map(shopifyCustomer => getCustomerOrders(shopifyCustomer.id))
+    customers.map(shopifyCustomer => getCustomerOrders(shopifyCustomer.id)),
   );
 
   // Step 4: Flatten all customer orders and add customer node info
@@ -511,7 +527,6 @@ const orderDetails = async (orderId: string, userId: string) => {
 };
 
 const getAllOrders = async (query?: { [key: string]: any }) => {
-
   const page = Number(query?.page) || 1;
   const limit = Number(query?.limit) || 10;
 
@@ -539,13 +554,12 @@ const getAllOrders = async (query?: { [key: string]: any }) => {
   // Slice the items to only return the requested page
   const paginatedItems = allItems.slice((page - 1) * limit, page * limit);
 
-
   const totalOrderResp = await getTotalOrder();
   const totalOrder =
-    typeof totalOrderResp === "object" &&
+    typeof totalOrderResp === 'object' &&
     totalOrderResp &&
     totalOrderResp.ordersCount &&
-    typeof totalOrderResp.ordersCount.count === "number"
+    typeof totalOrderResp.ordersCount.count === 'number'
       ? totalOrderResp.ordersCount.count
       : 0;
 
@@ -555,10 +569,9 @@ const getAllOrders = async (query?: { [key: string]: any }) => {
       page,
       limit,
       total: totalOrder,
-    }
+    },
   };
 };
-
 
 export const StoreService = {
   getAllCollection,
