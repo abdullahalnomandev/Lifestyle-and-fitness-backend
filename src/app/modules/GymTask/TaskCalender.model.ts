@@ -20,11 +20,9 @@ const taskCalendarSchema = new Schema<ITaskCalendar, ITaskCalendarModel>(
     },
     selectedStartDate: {
       type: Date,
-      required: true,
     },
     selectedEndDate: {
       type: Date,
-      required: true,
     },
     selectedWorkoutDates: {
       type: [Date],
@@ -35,7 +33,7 @@ const taskCalendarSchema = new Schema<ITaskCalendar, ITaskCalendarModel>(
       default: [],
     },
     workoutPictures: {
-      type: [{ date: Date, image: String ,caption: String}],
+      type: [{ date: Date, image: String, caption: String }],
       default: [],
     },
     createdAt: {
