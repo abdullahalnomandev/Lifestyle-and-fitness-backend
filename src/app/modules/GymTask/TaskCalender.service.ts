@@ -210,8 +210,8 @@ const getAllTaskCalenders = async (query: Record<string, any>) => {
   const selectedDatesSet = new Set(
     Array.isArray(taskCalendar?.selectedWorkoutDates)
       ? taskCalendar.selectedWorkoutDates.map((d: any) =>
-          dayjs(d).startOf('day').format('YYYY-MM-DD')
-        )
+        dayjs(d).startOf('day').format('YYYY-MM-DD')
+      )
       : []
   );
 
@@ -247,14 +247,14 @@ const getAllTaskCalenders = async (query: Record<string, any>) => {
     return result;
   });
 
-  return { 
-    data: { 
+  return {
+    data: {
       year: Number(year ?? taskCalendar?.year),
       month: Number(month ?? taskCalendar?.month),
       selectedStartDate: taskCalendar?.selectedStartDate,
       selectedEndDate: taskCalendar?.selectedEndDate,
       days,
-    } 
+    }
   };
 };
 
@@ -271,6 +271,7 @@ const uploadWorkoutPicture = async (user: any, image: string, caption: string, y
   const thisMonth = month ?? now.month() + 1; // dayjs months are 0-based
 
   const anyTaskCalendar = await TaskCalendar.findOne({ user: userId });
+  console.log({ anyTaskCalendar })
   if (!anyTaskCalendar) {
     throw new ApiError(StatusCodes.NOT_FOUND, "You don't have any workout.");
   }
@@ -280,7 +281,7 @@ const uploadWorkoutPicture = async (user: any, image: string, caption: string, y
   if (!taskCalendar) {
     taskCalendar = await TaskCalendar.findOne({ user: userId });
     if (!taskCalendar) {
-      throw new ApiError(StatusCodes.NOT_FOUND, "You don't have any workout.");
+      throw new ApiError(StatusCodes.NOT_FOUND, "You don't have any workout..");
     }
   }
 
