@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import { TaskCalendar } from './TaskCalender.model';
 import { ITaskCalendar } from './TaskCalender.interface';
 import utc from 'dayjs/plugin/utc';
+import { Calendar } from '../calendar/calender.model';
 
 dayjs.extend(utc);
 
@@ -270,8 +271,7 @@ const uploadWorkoutPicture = async (user: any, image: string, caption: string, y
   const thisYear = year ?? now.year();
   const thisMonth = month ?? now.month() + 1; // dayjs months are 0-based
 
-  const anyTaskCalendar = await TaskCalendar.findOne({ user: userId });
-  console.log({ anyTaskCalendar })
+  const anyTaskCalendar = await Calendar.findOne({ user: userId });
   if (!anyTaskCalendar) {
     throw new ApiError(StatusCodes.NOT_FOUND, "You don't have any workout.");
   }
