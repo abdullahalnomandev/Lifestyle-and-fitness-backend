@@ -259,11 +259,57 @@ const getAllTaskCalenders = async (query: Record<string, any>) => {
   };
 };
 
-const uploadWorkoutPicture = async (user: any, image: string, caption: string, year?: number, month?: number) => {
+// const uploadWorkoutPicture = async (user: any, image: string, caption: string, year?: number, month?: number) => {
+//   const userId = user?.id;
+
+//   if (!userId) {
+//     throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+//   }
+
+//   // Get current year/month if not provided
+//   const now = dayjs();
+//   const thisYear = year ?? now.year();
+//   const thisMonth = month ?? now.month() + 1; // dayjs months are 0-based
+
+//   const anyTaskCalendar = await TaskCalendar.findOne({ user: userId });
+//   if (!anyTaskCalendar) {
+//     throw new ApiError(StatusCodes.NOT_FOUND, "You don't have any workout.");
+//   }
+
+//   let taskCalendar = await TaskCalendar.findOne({ user: userId, year: thisYear, month: thisMonth });
+
+//   if (!taskCalendar) {
+//     taskCalendar = await TaskCalendar.findOne({ user: userId });
+//     if (!taskCalendar) {
+//       throw new ApiError(StatusCodes.NOT_FOUND, "You don't have any workout.");
+//     }
+//   }
+
+//   taskCalendar.workoutPictures.push({
+//     date: new Date(),
+//     image,
+//     caption
+//   });
+
+//   await taskCalendar.save();
+
+//   return taskCalendar;
+// };
+
+const uploadWorkoutPicture = async (
+  user: any,
+  image: string,
+  caption: string,
+  year?: number,
+  month?: number
+) => {
   const userId = user?.id;
 
   if (!userId) {
-    throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    throw new ApiError(
+      StatusCodes.UNAUTHORIZED,
+      "User not authenticated"
+    );
   }
 
   // Get current year/month if not provided
@@ -271,31 +317,43 @@ const uploadWorkoutPicture = async (user: any, image: string, caption: string, y
   const thisYear = year ?? now.year();
   const thisMonth = month ?? now.month() + 1; // dayjs months are 0-based
 
-  const anyTaskCalendar = await Calendar.findOne({ user: userId });
-  if (!anyTaskCalendar) {
-    throw new ApiError(StatusCodes.NOT_FOUND, "You don't have any workout.");
+  // Check if user has a calendar
+  const calendar = await Calendar.findOne({ user: userId });
+
+  if (!calendar) {
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      "You don't have any workout."
+    );
   }
 
-  let taskCalendar = await TaskCalendar.findOne({ user: userId, year: thisYear, month: thisMonth });
+  // Find current month's task calendar
+  let taskCalendar = await TaskCalendar.findOne({
+    user: userId,
+    year: thisYear,
+    month: thisMonth,
+  });
 
+  // Create one if it doesn't exist
   if (!taskCalendar) {
-    taskCalendar = await TaskCalendar.findOne({ user: userId });
-    if (!taskCalendar) {
-      throw new ApiError(StatusCodes.NOT_FOUND, "You don't have any workout..");
-    }
+    taskCalendar = await TaskCalendar.create({
+      user: userId,
+      year: thisYear,
+      month: thisMonth,
+      workoutPictures: [],
+    });
   }
 
   taskCalendar.workoutPictures.push({
     date: new Date(),
     image,
-    caption
+    caption,
   });
 
   await taskCalendar.save();
 
   return taskCalendar;
 };
-
 
 const deleteWorkoutPicture = async (userId: string, pictureId: string) => {
   if (!userId || !pictureId) {
