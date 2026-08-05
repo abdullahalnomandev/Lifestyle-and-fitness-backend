@@ -53,7 +53,8 @@ const createUser = catchAsync(
 );
 
 const getAllUsers = catchAsync(async (req: Request, res: Response) => {
-  const result = await UserService.getAllUsers(req.query);
+  const role = req?.user?.role
+  const result = await UserService.getAllUsers(req.query, role);
 
   sendResponse(res, {
     success: true,

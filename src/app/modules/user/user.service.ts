@@ -33,6 +33,7 @@ import {
 import { updateUserAccessFeature } from '../../../util/updateUserAccessFeature';
 import e from 'cors';
 import { PostView } from '../post/postView/postView.model';
+import { USER_ROLES } from '../../../enums/user';
 
 const willBeDeleteUser = async (email: string, password: string) => {
   const user = await User.findOne({ email }).select('+password');
@@ -71,7 +72,7 @@ const createUserToDB = async (
   payload.user_name = payload.user_name || payload.email?.split('@')[0];
   console.log(payload)
 
-  const isExist = await User.exists({ user_name: payload.user_name ,_id: { $ne: userId } }).lean();
+  const isExist = await User.exists({ user_name: payload.user_name, _id: { $ne: userId } }).lean();
   if (isExist) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'User name already exists!');
   }
@@ -223,11 +224,14 @@ const updateProfileToDB = async (
   return updatedUser;
 };
 
-const getAllUsers = async (query: Record<string, any>) => {
-  const club_id = query.club_id;
-
+const getAllUsers = async (query: Record<string, any>, role: string) => {
   // Build base query
-  let baseQuery = User.find({ canAccessFeature: true });
+  let baseQuery: any;
+  if (role === USER_ROLES.SUPER_ADMIN || role === USER_ROLES.ADMIN) {
+    baseQuery = User.find({ verified: true });
+  } else {
+    baseQuery = User.find({ canAccessFeature: true, verified: true });
+  }
 
   const userQuery = new QueryBuilder(baseQuery, query)
     .paginate()
@@ -468,9 +472,9 @@ const statistics = async () => {
   // Compute totalOrder
   const totalOrder =
     typeof totalOrderResp === 'object' &&
-    totalOrderResp &&
-    totalOrderResp.ordersCount &&
-    typeof totalOrderResp.ordersCount.count === 'number'
+      totalOrderResp &&
+      totalOrderResp.ordersCount &&
+      typeof totalOrderResp.ordersCount.count === 'number'
       ? totalOrderResp.ordersCount.count
       : 0;
 
