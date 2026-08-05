@@ -227,7 +227,7 @@ const getAllUsers = async (query: Record<string, any>) => {
   const club_id = query.club_id;
 
   // Build base query
-  let baseQuery = User.find();
+  let baseQuery = User.find({ canAccessFeature: true });
 
   const userQuery = new QueryBuilder(baseQuery, query)
     .paginate()

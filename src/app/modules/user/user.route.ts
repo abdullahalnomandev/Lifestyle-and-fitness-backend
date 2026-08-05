@@ -53,7 +53,7 @@ router
 
 
 router
-  .route('')
+  .route('/')
   .post(
     auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.SUPER_ADMIN),
     UserController.toggleProfileUpdate
