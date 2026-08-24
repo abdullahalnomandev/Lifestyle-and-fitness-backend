@@ -90,14 +90,14 @@ const getSingleMeal = async (
     UserToken.findOne({ user: userId }),
   ]);
 
-  if ((totalToken?.numberOfToken ?? 0) < 1 && !existingRef) {
+  if ((totalToken?.numberOfToken ?? 0) < 7 && !existingRef) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'You have no token to unlock.');
   }
 
-  if (!existingRef && totalToken && totalToken?.numberOfToken >= 1) {
+  if (!existingRef && totalToken && totalToken?.numberOfToken >= 7) {
     await Promise.all([
       UserTokenRef.create({ ref: id, user: userId }),
-      UserToken.updateOne({ user: userId }, { $inc: { numberOfToken: -1 } }),
+      UserToken.updateOne({ user: userId }, { $inc: { numberOfToken: -7 } }),
     ]);
   }
 
